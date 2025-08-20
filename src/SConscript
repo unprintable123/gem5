@@ -254,6 +254,7 @@ def protoc_emitter(target, source, env):
 
 # To understand these variables and attributes, see:
 # https://scons.org/doc/production/HTML/scons-man.html#variable_substitution
+print("PROTOC is set to:", env.get('PROTOC', 'Not set'))
 protoc_action = MakeAction('${PROTOC} --cpp_out ${TARGET.dir.abspath} '
         '--proto_path ${SOURCE.dir.abspath} ${SOURCE.abspath}',
         Transform("PROTOC"))

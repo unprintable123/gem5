@@ -117,12 +117,24 @@ parser.add_argument(
                         Set to -1 to inject randomly in all vnets.",
 )
 
+parser.add_argument(
+    "--wormhole",
+    action="store_true",
+)
+
 #
 # Add the ruby specific and protocol specific options
 #
 Ruby.define_options(parser)
 
 args = parser.parse_args()
+
+if args.wormhole:
+    args.buffers_per_data_vc = 16
+    args.buffers_per_ctrl_vc = 16
+else:
+    args.buffers_per_data_vc = 1
+    args.buffers_per_ctrl_vc = 1
 
 cpus = [
     GarnetSyntheticTraffic(
@@ -173,7 +185,7 @@ root = Root(full_system=False, system=system)
 root.system.mem_mode = "timing"
 
 # Not much point in this being higher than the L1 latency
-m5.ticks.setGlobalFrequency("1ps")
+m5.ticks.setGlobalFrequency("500ps")
 
 # instantiate configuration
 m5.instantiate()
