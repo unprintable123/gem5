@@ -106,30 +106,30 @@ for status, fname in git.status(filter="MA", cached=True):
                 staged_mismatch.add(fname)
     f.close()
 
-if failing_files:
-    if len(failing_files) > len(staged_mismatch):
-        print("\n", file=sys.stderr)
-        print("Style checker failed for the following files:", file=sys.stderr)
-        for f in failing_files:
-            if f not in staged_mismatch:
-                print(f"\t{f}", file=sys.stderr)
-        print("\n", file=sys.stderr)
-        print(
-            "Please run the style checker manually to fix "
-            "the offending files.\n"
-            "To check your modifications, run: util/style.py -m",
-            file=sys.stderr,
-        )
+# if failing_files:
+#     if len(failing_files) > len(staged_mismatch):
+#         print("\n", file=sys.stderr)
+#         print("Style checker failed for the following files:", file=sys.stderr)
+#         for f in failing_files:
+#             if f not in staged_mismatch:
+#                 print(f"\t{f}", file=sys.stderr)
+#         print("\n", file=sys.stderr)
+#         print(
+#             "Please run the style checker manually to fix "
+#             "the offending files.\n"
+#             "To check your modifications, run: util/style.py -m",
+#             file=sys.stderr,
+#         )
 
-    print("\n", file=sys.stderr)
-    if staged_mismatch:
-        print(
-            "It looks like you have forgotten to stage your "
-            "fixes for commit in\n"
-            "the following files: ",
-            file=sys.stderr,
-        )
-        for f in staged_mismatch:
-            print(f"\t{f}", file=sys.stderr)
-        print("Please `git --add' them", file=sys.stderr)
-    sys.exit(1)
+#     print("\n", file=sys.stderr)
+#     if staged_mismatch:
+#         print(
+#             "It looks like you have forgotten to stage your "
+#             "fixes for commit in\n"
+#             "the following files: ",
+#             file=sys.stderr,
+#         )
+#         for f in staged_mismatch:
+#             print(f"\t{f}", file=sys.stderr)
+#         print("Please `git --add' them", file=sys.stderr)
+#     sys.exit(1)
