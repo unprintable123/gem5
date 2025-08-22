@@ -117,6 +117,22 @@ parser.add_argument(
                         Set to -1 to inject randomly in all vnets.",
 )
 
+parser.add_argument(
+    "--buffers-per-data-vc",
+    type=int,
+    default=4,
+    help="Number of buffers per data virtual channel.\
+                        Default is 4.",
+)
+
+parser.add_argument(
+    "--buffers-per-ctrl-vc",
+    type=int,
+    default=4,
+    help="Number of buffers per control virtual channel.\
+                        Default is 4.",
+)
+
 #
 # Add the ruby specific and protocol specific options
 #

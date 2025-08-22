@@ -391,14 +391,14 @@ GarnetNetwork::regStats()
         .init(m_virtual_networks)
         .name(name() + ".packets_received")
         .flags(statistics::pdf | statistics::total | statistics::nozero |
-            statistics::oneline)
+            statistics::oneline).unit(statistics::units::Count::get())
         ;
 
     m_packets_injected
         .init(m_virtual_networks)
         .name(name() + ".packets_injected")
         .flags(statistics::pdf | statistics::total | statistics::nozero |
-            statistics::oneline)
+            statistics::oneline).unit(statistics::units::Count::get())
         ;
 
     m_packet_network_latency
@@ -433,17 +433,20 @@ GarnetNetwork::regStats()
         m_packet_queueing_latency / m_packets_received;
 
     m_avg_packet_network_latency
-        .name(name() + ".average_packet_network_latency");
+        .name(name() + ".average_packet_network_latency")
+        .unit(statistics::units::Tick::get());
     m_avg_packet_network_latency =
         sum(m_packet_network_latency) / sum(m_packets_received);
 
     m_avg_packet_queueing_latency
-        .name(name() + ".average_packet_queueing_latency");
+        .name(name() + ".average_packet_queueing_latency")
+        .unit(statistics::units::Tick::get());
     m_avg_packet_queueing_latency
         = sum(m_packet_queueing_latency) / sum(m_packets_received);
 
     m_avg_packet_latency
-        .name(name() + ".average_packet_latency");
+        .name(name() + ".average_packet_latency")
+        .unit(statistics::units::Tick::get());
     m_avg_packet_latency
         = m_avg_packet_network_latency + m_avg_packet_queueing_latency;
 
@@ -509,7 +512,8 @@ GarnetNetwork::regStats()
 
 
     // Hops
-    m_avg_hops.name(name() + ".average_hops");
+    m_avg_hops.name(name() + ".average_hops")
+            .unit(statistics::units::Count::get());
     m_avg_hops = m_total_hops / sum(m_flits_received);
 
     // Links
@@ -548,6 +552,18 @@ GarnetNetwork::regStats()
             m_ctrl_traffic_distribution[source].push_back(ctrl_packets);
         }
     }
+
+    // m_total_cycles
+    //     .name(name() + ".total_cycles")
+    //     .flags(statistics::oneline).unit(statistics::units::Cycle::get());
+
+    // m_reception_rate
+    //     .name(name() + ".reception_rate")
+    //     .flags(statistics::oneline)
+    //     .unit(statistics::units::Rate<statistics::units::Count,
+    //         statistics::units::Cycle>::get());
+    // m_reception_rate = sum(m_packets_received) /
+    //         (m_routers.size() * m_total_cycles);
 }
 
 void
