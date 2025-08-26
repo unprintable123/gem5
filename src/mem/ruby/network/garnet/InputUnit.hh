@@ -28,7 +28,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #ifndef __MEM_RUBY_NETWORK_GARNET_0_INPUTUNIT_HH__
 #define __MEM_RUBY_NETWORK_GARNET_0_INPUTUNIT_HH__
 
@@ -46,136 +45,167 @@
 namespace gem5
 {
 
-namespace ruby
-{
-
-namespace garnet
-{
-
-class InputUnit : public Consumer
-{
-  public:
-    InputUnit(int id, PortDirection direction, Router *router);
-    ~InputUnit() = default;
-
-    void wakeup();
-    void print(std::ostream& out) const {};
-
-    inline PortDirection get_direction() { return m_direction; }
-
-    inline void
-    set_vc_idle(int vc, Tick curTime)
+    namespace ruby
     {
-        virtualChannels[vc].set_idle(curTime);
-    }
 
-    inline void
-    set_vc_active(int vc, Tick curTime)
-    {
-        virtualChannels[vc].set_active(curTime);
-    }
+        namespace garnet
+        {
 
-    inline void
-    grant_outport(int vc, int outport)
-    {
-        virtualChannels[vc].set_outport(outport);
-    }
+            class InputUnit : public Consumer
+            {
+            public:
+                InputUnit(int id, PortDirection direction, Router *router);
+                ~InputUnit() = default;
 
-    inline void
-    grant_outvc(int vc, int outvc)
-    {
-        virtualChannels[vc].set_outvc(outvc);
-    }
+                void wakeup();
+                void print(std::ostream &out) const {};
 
-    inline int
-    get_outport(int invc)
-    {
-        return virtualChannels[invc].get_outport();
-    }
+                inline PortDirection get_direction() { return m_direction; }
 
-    inline int
-    get_outvc(int invc)
-    {
-        return virtualChannels[invc].get_outvc();
-    }
+                inline void
+                set_vc_idle(int vc, Tick curTime)
+                {
+                    virtualChannels[vc].set_idle(curTime);
+                }
 
-    inline Tick
-    get_enqueue_time(int invc)
-    {
-        return virtualChannels[invc].get_enqueue_time();
-    }
+                inline void
+                set_vc_active(int vc, Tick curTime)
+                {
+                    virtualChannels[vc].set_active(curTime);
+                }
 
-    void increment_credit(int in_vc, bool free_signal, Tick curTime);
+                inline void
+                grant_outport(int vc, int outport)
+                {
+                    virtualChannels[vc].set_outport(outport);
+                }
 
-    inline flit*
-    peekTopFlit(int vc)
-    {
-        return virtualChannels[vc].peekTopFlit();
-    }
+                inline void
+                grant_outvc(int vc, int outvc)
+                {
+                    virtualChannels[vc].set_outvc(outvc);
+                }
 
-    inline flit*
-    getTopFlit(int vc)
-    {
-        return virtualChannels[vc].getTopFlit();
-    }
+                inline int
+                get_outport(int invc)
+                {
+                    return virtualChannels[invc].get_outport();
+                }
 
-    inline bool
-    need_stage(int vc, flit_stage stage, Tick time)
-    {
-        return virtualChannels[vc].need_stage(stage, time);
-    }
+                inline int
+                get_outvc(int invc)
+                {
+                    return virtualChannels[invc].get_outvc();
+                }
 
-    inline bool
-    isReady(int invc, Tick curTime)
-    {
-        return virtualChannels[invc].isReady(curTime);
-    }
+                inline Tick
+                get_enqueue_time(int invc)
+                {
+                    return virtualChannels[invc].get_enqueue_time();
+                }
 
-    flitBuffer* getCreditQueue() { return &creditQueue; }
+                void increment_credit(int in_vc, bool free_signal, Tick curTime);
 
-    inline void
-    set_in_link(NetworkLink *link)
-    {
-        m_in_link = link;
-    }
+                inline flit *
+                peekTopFlit(int vc)
+                {
+                    return virtualChannels[vc].peekTopFlit();
+                }
 
-    inline int get_inlink_id() { return m_in_link->get_id(); }
+                inline flit *
+                getTopFlit(int vc)
+                {
+                    return virtualChannels[vc].getTopFlit();
+                }
 
-    inline void
-    set_credit_link(CreditLink *credit_link)
-    {
-        m_credit_link = credit_link;
-    }
+                inline bool
+                need_stage(int vc, flit_stage stage, Tick time)
+                {
+                    return virtualChannels[vc].need_stage(stage, time);
+                }
 
-    double get_buf_read_activity(unsigned int vnet) const
-    { return m_num_buffer_reads[vnet]; }
-    double get_buf_write_activity(unsigned int vnet) const
-    { return m_num_buffer_writes[vnet]; }
+                inline bool
+                isReady(int invc, Tick curTime)
+                {
+                    return virtualChannels[invc].isReady(curTime);
+                }
 
-    bool functionalRead(Packet *pkt, WriteMask &mask);
-    uint32_t functionalWrite(Packet *pkt);
+                flitBuffer *getCreditQueue() { return &creditQueue; }
 
-    void resetStats();
+                inline void
+                set_in_link(NetworkLink *link)
+                {
+                    m_in_link = link;
+                }
 
-  private:
-    Router *m_router;
-    int m_id;
-    PortDirection m_direction;
-    int m_vc_per_vnet;
-    NetworkLink *m_in_link;
-    CreditLink *m_credit_link;
-    flitBuffer creditQueue;
+                inline int get_inlink_id() { return m_in_link->get_id(); }
 
-    // Input Virtual channels
-    std::vector<VirtualChannel> virtualChannels;
+                inline void
+                set_credit_link(CreditLink *credit_link)
+                {
+                    m_credit_link = credit_link;
+                }
 
-    // Statistical variables
-    std::vector<double> m_num_buffer_writes;
-    std::vector<double> m_num_buffer_reads;
-};
+                double get_buf_read_activity(unsigned int vnet) const
+                {
+                    return m_num_buffer_reads[vnet];
+                }
+                double get_buf_write_activity(unsigned int vnet) const
+                {
+                    return m_num_buffer_writes[vnet];
+                }
 
-} // namespace garnet
-} // namespace ruby
+                // --- DimWAR: expose in-class of the latest HEAD on this input, and per-VC route class ---
+                // The VC index mod m_vc_per_vnet of the last HEAD/HEAD_TAIL that arrived on this input.
+                int getLastHeadInClass() const { return m_last_head_in_class; }
+
+                // Set by RoutingUnit during route_compute for this input; consumed by InputUnit after RC.
+                void setPendingRouteClass(int cls) { m_pending_route_class = cls; }
+
+                // Stored per-VC after RC, read by SwitchAllocator during VC allocation.
+                int getRouteClass(int invc) const
+                {
+                    if (invc >= 0 && invc < (int)m_route_class_for_vc.size())
+                        return m_route_class_for_vc[invc];
+                    return 0; // default to minimal class
+                }
+
+                // Called right after RC to bind the class to the specific VC that just routed.
+                void setRouteClassForVC(int invc, int cls)
+                {
+                    if (invc >= 0 && invc < (int)m_route_class_for_vc.size())
+                        m_route_class_for_vc[invc] = cls;
+                }
+
+                bool functionalRead(Packet *pkt, WriteMask &mask);
+                uint32_t functionalWrite(Packet *pkt);
+
+                void resetStats();
+
+            private:
+                Router *m_router;
+                int m_id;
+                PortDirection m_direction;
+                int m_vc_per_vnet;
+                NetworkLink *m_in_link;
+                CreditLink *m_credit_link;
+                flitBuffer creditQueue;
+
+                // Input Virtual channels
+                std::vector<VirtualChannel> virtualChannels;
+
+                // Statistical variables
+                std::vector<double> m_num_buffer_writes;
+                std::vector<double> m_num_buffer_reads;
+
+                // --- DimWAR book-keeping (per input unit) ---
+                int m_last_head_in_class = 0;          // class of last HEAD that arrived on this input
+                int m_pending_route_class = 0;         // class decided by RC for the current HEAD
+                std::vector<int> m_route_class_for_vc; // class per VC after RC (0=minimal,1=deroute)
+            };
+
+        } // namespace garnet
+    } // namespace ruby
 } // namespace gem5
 
 #endif // __MEM_RUBY_NETWORK_GARNET_0_INPUTUNIT_HH__
