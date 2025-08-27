@@ -23,3 +23,4 @@ grep "average_packet_network_latency" m5out/stats.txt | sed 's/system.ruby.netwo
 grep "average_packet_latency" m5out/stats.txt | sed 's/system.ruby.network.average_packet_latency\s*/average_packet_latency = /' >> ${logging_target}
 grep "average_hops" m5out/stats.txt | sed 's/system.ruby.network.average_hops\s*/average_hops = /' >> ${logging_target}
 grep "reception_rate" m5out/stats.txt | sed 's/system.ruby.network.reception_rate\s*/reception_rate = /' >> ${logging_target}
+cat ${logging_target}

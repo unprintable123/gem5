@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #ifndef __MEM_RUBY_NETWORK_GARNET_0_OUTPUTUNIT_HH__
 #define __MEM_RUBY_NETWORK_GARNET_0_OUTPUTUNIT_HH__
 
@@ -43,93 +44,93 @@
 namespace gem5
 {
 
-  namespace ruby
-  {
+namespace ruby
+{
 
-    namespace garnet
+namespace garnet
+{
+
+class CreditLink;
+class Router;
+
+class OutputUnit : public Consumer
+{
+  public:
+    OutputUnit(int id, PortDirection direction, Router *router,
+               uint32_t consumerVcs);
+    ~OutputUnit() = default;
+    void set_out_link(NetworkLink *link);
+    void set_credit_link(CreditLink *credit_link);
+    void wakeup();
+    flitBuffer* getOutQueue();
+    void print(std::ostream& out) const {};
+    void decrement_credit(int out_vc);
+    void increment_credit(int out_vc);
+    bool has_credit(int out_vc);
+    bool has_free_vc(int vnet);
+    int select_free_vc(int vnet);
+
+    inline PortDirection get_direction() { return m_direction; }
+
+    int
+    get_credit_count(int vc)
     {
+        return outVcState[vc].get_credit_count();
+    }
 
-      class CreditLink;
-      class Router;
+    inline int
+    get_outlink_id()
+    {
+        return m_out_link->get_id();
+    }
 
-      class OutputUnit : public Consumer
-      {
-      public:
-        OutputUnit(int id, PortDirection direction, Router *router,
-                   uint32_t consumerVcs);
-        ~OutputUnit() = default;
-        void set_out_link(NetworkLink *link);
-        void set_credit_link(CreditLink *credit_link);
-        void wakeup();
-        flitBuffer *getOutQueue();
-        void print(std::ostream &out) const {};
-        void decrement_credit(int out_vc);
-        void increment_credit(int out_vc);
-        bool has_credit(int out_vc);
-        bool has_free_vc(int vnet);
-        int select_free_vc(int vnet);
+    inline void
+    set_vc_state(VC_state_type state, int vc, Tick curTime)
+    {
+      outVcState[vc].setState(state, curTime);
+    }
 
-        inline PortDirection get_direction() { return m_direction; }
+    inline bool
+    is_vc_idle(int vc, Tick curTime)
+    {
+        return (outVcState[vc].isInState(IDLE_, curTime));
+    }
 
-        int
-        get_credit_count(int vc)
-        {
-          return outVcState[vc].get_credit_count();
-        }
+    // --- DimWAR helpers (exposed for congestion metric & class-biased VC pick) ---
 
-        inline int
-        get_outlink_id()
-        {
-          return m_out_link->get_id();
-        }
+    int num_free_vcs(int vnet);
+    int sum_credits(int vnet);
 
-        inline void
-        set_vc_state(VC_state_type state, int vc, Tick curTime)
-        {
-          outVcState[vc].setState(state, curTime);
-        }
+    // Prefer VC class (0 = lower half, 1 = upper half) when selecting a free VC.
+    int select_free_vc_biased(int vnet, int prefer_class);
 
-        inline bool
-        is_vc_idle(int vc, Tick curTime)
-        {
-          return (outVcState[vc].isInState(IDLE_, curTime));
-        }
+    void insert_flit(flit *t_flit);
 
-        // --- DimWAR helpers (exposed for congestion metric & class-biased VC pick) ---
+    inline int
+    getVcsPerVnet()
+    {
+        return m_vc_per_vnet;
+    }
 
-        int num_free_vcs(int vnet);
-        int sum_credits(int vnet);
+    bool functionalRead(Packet *pkt, WriteMask &mask);
+    uint32_t functionalWrite(Packet *pkt);
 
-        // Prefer VC class (0 = lower half, 1 = upper half) when selecting a free VC.
-        int select_free_vc_biased(int vnet, int prefer_class);
+  private:
+    Router *m_router;
+    GEM5_CLASS_VAR_USED int m_id;
+    PortDirection m_direction;
+    int m_vc_per_vnet;
+    NetworkLink *m_out_link;
+    CreditLink *m_credit_link;
 
-        void insert_flit(flit *t_flit);
+    // This is for the network link to consume
+    flitBuffer outBuffer;
+    // vc state of downstream router
+    std::vector<OutVcState> outVcState;
+};
 
-        inline int
-        getVcsPerVnet()
-        {
-          return m_vc_per_vnet;
-        }
-
-        bool functionalRead(Packet *pkt, WriteMask &mask);
-        uint32_t functionalWrite(Packet *pkt);
-
-      private:
-        Router *m_router;
-        GEM5_CLASS_VAR_USED int m_id;
-        PortDirection m_direction;
-        int m_vc_per_vnet;
-        NetworkLink *m_out_link;
-        CreditLink *m_credit_link;
-
-        // This is for the network link to consume
-        flitBuffer outBuffer;
-        // vc state of downstream router
-        std::vector<OutVcState> outVcState;
-      };
-
-    } // namespace garnet
-  } // namespace ruby
+} // namespace garnet
+} // namespace ruby
 } // namespace gem5
 
 #endif // __MEM_RUBY_NETWORK_GARNET_0_OUTPUTUNIT_HH__

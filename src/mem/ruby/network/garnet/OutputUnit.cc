@@ -28,6 +28,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+
 #include "mem/ruby/network/garnet/OutputUnit.hh"
 
 #include "debug/RubyNetwork.hh"
@@ -41,221 +42,214 @@
 namespace gem5
 {
 
-    namespace ruby
+namespace ruby
+{
+
+namespace garnet
+{
+
+OutputUnit::OutputUnit(int id, PortDirection direction, Router *router,
+  uint32_t consumerVcs)
+  : Consumer(router), m_router(router), m_id(id), m_direction(direction),
+    m_vc_per_vnet(consumerVcs)
+{
+    const int m_num_vcs = consumerVcs * m_router->get_num_vnets();
+    outVcState.reserve(m_num_vcs);
+    for (int i = 0; i < m_num_vcs; i++) {
+        outVcState.emplace_back(i, m_router->get_net_ptr(), consumerVcs);
+    }
+}
+
+void
+OutputUnit::decrement_credit(int out_vc)
+{
+    DPRINTF(RubyNetwork, "Router %d OutputUnit %s decrementing credit:%d for "
+            "outvc %d at time: %lld for %s\n", m_router->get_id(),
+            m_router->getPortDirectionName(get_direction()),
+            outVcState[out_vc].get_credit_count(),
+            out_vc, m_router->curCycle(), m_credit_link->name());
+
+    outVcState[out_vc].decrement_credit();
+}
+
+void
+OutputUnit::increment_credit(int out_vc)
+{
+    DPRINTF(RubyNetwork, "Router %d OutputUnit %s incrementing credit:%d for "
+            "outvc %d at time: %lld from:%s\n", m_router->get_id(),
+            m_router->getPortDirectionName(get_direction()),
+            outVcState[out_vc].get_credit_count(),
+            out_vc, m_router->curCycle(), m_credit_link->name());
+
+    outVcState[out_vc].increment_credit();
+}
+
+// Check if the output VC (i.e., input VC at next router)
+// has free credits (i..e, buffer slots).
+// This is tracked by OutVcState
+bool
+OutputUnit::has_credit(int out_vc)
+{
+    assert(outVcState[out_vc].isInState(ACTIVE_, curTick()));
+    return outVcState[out_vc].has_credit();
+}
+
+
+// Check if the output port (i.e., input port at next router) has free VCs.
+bool
+OutputUnit::has_free_vc(int vnet)
+{
+    int vc_base = vnet*m_vc_per_vnet;
+    for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++) {
+        if (is_vc_idle(vc, curTick()))
+            return true;
+    }
+
+    return false;
+}
+
+// Assign a free output VC to the winner of Switch Allocation
+int
+OutputUnit::select_free_vc(int vnet)
+{
+    int vc_base = vnet*m_vc_per_vnet;
+    for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++) {
+        if (is_vc_idle(vc, curTick())) {
+            outVcState[vc].setState(ACTIVE_, curTick());
+            return vc;
+        }
+    }
+
+    return -1;
+}
+
+/*
+ * The wakeup function of the OutputUnit reads the credit signal from the
+ * downstream router for the output VC (i.e., input VC at downstream router).
+ * It increments the credit count in the appropriate output VC state.
+ * If the credit carries is_free_signal as true,
+ * the output VC is marked IDLE.
+ */
+
+void
+OutputUnit::wakeup()
+{
+    if (m_credit_link->isReady(curTick())) {
+        Credit *t_credit = (Credit*) m_credit_link->consumeLink();
+        increment_credit(t_credit->get_vc());
+
+        if (t_credit->is_free_signal())
+            set_vc_state(IDLE_, t_credit->get_vc(), curTick());
+
+        delete t_credit;
+
+        if (m_credit_link->isReady(curTick())) {
+            scheduleEvent(Cycles(1));
+        }
+    }
+}
+
+flitBuffer*
+OutputUnit::getOutQueue()
+{
+    return &outBuffer;
+}
+
+void
+OutputUnit::set_out_link(NetworkLink *link)
+{
+    m_out_link = link;
+}
+
+void
+OutputUnit::set_credit_link(CreditLink *credit_link)
+{
+    m_credit_link = credit_link;
+}
+
+int
+OutputUnit::num_free_vcs(int vnet)
+{
+    int cnt = 0;
+    int vc_base = vnet * m_vc_per_vnet;
+    for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
     {
+        if (outVcState[vc].isInState(IDLE_, curTick()))
+            cnt++;
+    }
+    return cnt;
+}
 
-        namespace garnet
+int
+OutputUnit::sum_credits(int vnet)
+{
+    int sum = 0;
+    int vc_base = vnet * m_vc_per_vnet;
+    for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
+    {
+        sum += outVcState[vc].get_credit_count();
+    }
+    return sum;
+}
+
+int
+OutputUnit::select_free_vc_biased(int vnet, int prefer_class)
+{
+    // prefer_class: 0 -> lower half (minimal), 1 -> upper half (deroute)
+    int vc_base = vnet * m_vc_per_vnet;
+    int half = std::max(1, m_vc_per_vnet / 2);
+
+    auto try_range = [&](int start_off, int end_off) -> int
+    {
+        for (int off = start_off; off < end_off; ++off)
         {
-
-            OutputUnit::OutputUnit(int id, PortDirection direction, Router *router,
-                                   uint32_t consumerVcs)
-                : Consumer(router), m_router(router), m_id(id), m_direction(direction),
-                  m_vc_per_vnet(consumerVcs)
+            int vc = vc_base + off;
+            if (is_vc_idle(vc, curTick()))
             {
-                const int m_num_vcs = consumerVcs * m_router->get_num_vnets();
-                outVcState.reserve(m_num_vcs);
-                for (int i = 0; i < m_num_vcs; i++)
-                {
-                    outVcState.emplace_back(i, m_router->get_net_ptr(), consumerVcs);
-                }
+                outVcState[vc].setState(ACTIVE_, curTick());
+                return vc;
             }
+        }
+        return -1;
+    };
 
-            void
-            OutputUnit::decrement_credit(int out_vc)
-            {
-                DPRINTF(RubyNetwork, "Router %d OutputUnit %s decrementing credit:%d for "
-                                     "outvc %d at time: %lld for %s\n",
-                        m_router->get_id(),
-                        m_router->getPortDirectionName(get_direction()),
-                        outVcState[out_vc].get_credit_count(),
-                        out_vc, m_router->curCycle(), m_credit_link->name());
+    // First try the preferred half
+    if (prefer_class == 0)
+    {
+        int vc = try_range(0, half);
+        if (vc != -1)
+            return vc;
+    }
+    else
+    {
+        int vc = try_range(half, m_vc_per_vnet);
+        if (vc != -1)
+            return vc;
+    }
 
-                outVcState[out_vc].decrement_credit();
-            }
+    // Fallback: any free VC (preserve baseline behavior)
+    return select_free_vc(vnet);
+}
 
-            void
-            OutputUnit::increment_credit(int out_vc)
-            {
-                DPRINTF(RubyNetwork, "Router %d OutputUnit %s incrementing credit:%d for "
-                                     "outvc %d at time: %lld from:%s\n",
-                        m_router->get_id(),
-                        m_router->getPortDirectionName(get_direction()),
-                        outVcState[out_vc].get_credit_count(),
-                        out_vc, m_router->curCycle(), m_credit_link->name());
+void
+OutputUnit::insert_flit(flit *t_flit)
+{
+    outBuffer.insert(t_flit);
+    m_out_link->scheduleEventAbsolute(m_router->clockEdge(Cycles(1)));
+}
 
-                outVcState[out_vc].increment_credit();
-            }
+bool
+OutputUnit::functionalRead(Packet *pkt, WriteMask &mask)
+{
+    return outBuffer.functionalRead(pkt, mask);
+}
 
-            // Check if the output VC (i.e., input VC at next router)
-            // has free credits (i..e, buffer slots).
-            // This is tracked by OutVcState
-            bool
-            OutputUnit::has_credit(int out_vc)
-            {
-                assert(outVcState[out_vc].isInState(ACTIVE_, curTick()));
-                return outVcState[out_vc].has_credit();
-            }
+uint32_t
+OutputUnit::functionalWrite(Packet *pkt)
+{
+    return outBuffer.functionalWrite(pkt);
+}
 
-            // Check if the output port (i.e., input port at next router) has free VCs.
-            bool
-            OutputUnit::has_free_vc(int vnet)
-            {
-                int vc_base = vnet * m_vc_per_vnet;
-                for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
-                {
-                    if (is_vc_idle(vc, curTick()))
-                        return true;
-                }
-
-                return false;
-            }
-
-            // Assign a free output VC to the winner of Switch Allocation
-            int
-            OutputUnit::select_free_vc(int vnet)
-            {
-                int vc_base = vnet * m_vc_per_vnet;
-                for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
-                {
-                    if (is_vc_idle(vc, curTick()))
-                    {
-                        outVcState[vc].setState(ACTIVE_, curTick());
-                        return vc;
-                    }
-                }
-
-                return -1;
-            }
-
-            /*
-             * The wakeup function of the OutputUnit reads the credit signal from the
-             * downstream router for the output VC (i.e., input VC at downstream router).
-             * It increments the credit count in the appropriate output VC state.
-             * If the credit carries is_free_signal as true,
-             * the output VC is marked IDLE.
-             */
-
-            void
-            OutputUnit::wakeup()
-            {
-                if (m_credit_link->isReady(curTick()))
-                {
-                    Credit *t_credit = (Credit *)m_credit_link->consumeLink();
-                    increment_credit(t_credit->get_vc());
-
-                    if (t_credit->is_free_signal())
-                        set_vc_state(IDLE_, t_credit->get_vc(), curTick());
-
-                    delete t_credit;
-
-                    if (m_credit_link->isReady(curTick()))
-                    {
-                        scheduleEvent(Cycles(1));
-                    }
-                }
-            }
-
-            flitBuffer *
-            OutputUnit::getOutQueue()
-            {
-                return &outBuffer;
-            }
-
-            void
-            OutputUnit::set_out_link(NetworkLink *link)
-            {
-                m_out_link = link;
-            }
-
-            void
-            OutputUnit::set_credit_link(CreditLink *credit_link)
-            {
-                m_credit_link = credit_link;
-            }
-
-            int
-            OutputUnit::num_free_vcs(int vnet)
-            {
-                int cnt = 0;
-                int vc_base = vnet * m_vc_per_vnet;
-                for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
-                {
-                    if (outVcState[vc].isInState(IDLE_, curTick()))
-                        cnt++;
-                }
-                return cnt;
-            }
-
-            int
-            OutputUnit::sum_credits(int vnet)
-            {
-                int sum = 0;
-                int vc_base = vnet * m_vc_per_vnet;
-                for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
-                {
-                    sum += outVcState[vc].get_credit_count();
-                }
-                return sum;
-            }
-
-            int
-            OutputUnit::select_free_vc_biased(int vnet, int prefer_class)
-            {
-                // prefer_class: 0 -> lower half (minimal), 1 -> upper half (deroute)
-                int vc_base = vnet * m_vc_per_vnet;
-                int half = std::max(1, m_vc_per_vnet / 2);
-
-                auto try_range = [&](int start_off, int end_off) -> int
-                {
-                    for (int off = start_off; off < end_off; ++off)
-                    {
-                        int vc = vc_base + off;
-                        if (is_vc_idle(vc, curTick()))
-                        {
-                            outVcState[vc].setState(ACTIVE_, curTick());
-                            return vc;
-                        }
-                    }
-                    return -1;
-                };
-
-                // First try the preferred half
-                if (prefer_class == 0)
-                {
-                    int vc = try_range(0, half);
-                    if (vc != -1)
-                        return vc;
-                }
-                else
-                {
-                    int vc = try_range(half, m_vc_per_vnet);
-                    if (vc != -1)
-                        return vc;
-                }
-
-                // Fallback: any free VC (preserve baseline behavior)
-                return select_free_vc(vnet);
-            }
-
-            void
-            OutputUnit::insert_flit(flit *t_flit)
-            {
-                outBuffer.insert(t_flit);
-                m_out_link->scheduleEventAbsolute(m_router->clockEdge(Cycles(1)));
-            }
-
-            bool
-            OutputUnit::functionalRead(Packet *pkt, WriteMask &mask)
-            {
-                return outBuffer.functionalRead(pkt, mask);
-            }
-
-            uint32_t
-            OutputUnit::functionalWrite(Packet *pkt)
-            {
-                return outBuffer.functionalWrite(pkt);
-            }
-
-        } // namespace garnet
-    } // namespace ruby
+} // namespace garnet
+} // namespace ruby
 } // namespace gem5
