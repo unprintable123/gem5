@@ -57,6 +57,11 @@ parser.add_argument(
         "neighbor",
         "shuffle",
         "transpose",
+        "urbx",
+        "urby",
+        "urbz",
+        "s2",
+        "dcr",
     ],
 )
 

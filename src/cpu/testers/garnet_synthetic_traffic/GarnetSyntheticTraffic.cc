@@ -184,58 +184,186 @@ void
 GarnetSyntheticTraffic::generatePkt()
 {
     int num_destinations = numDestinations;
-    int radix = (int) sqrt(num_destinations);
-    unsigned destination = id;
-    int dest_x = -1;
-    int dest_y = -1;
-    int source = id;
-    int src_x = id%radix;
-    int src_y = id/radix;
 
-    if (singleDest >= 0)
-    {
+    // ---- Dimension inference (2D square or 3D cube only) ----
+    // Try 2D: Rx * Ry, we assume square -> Rx = Ry = sqrt(N)
+    auto is_perfect_square = [](int n) -> bool {
+        int r = (int) std::round(std::sqrt((double)n));
+        return r * r == n;
+    };
+
+    auto is_perfect_cube = [](int n) -> bool {
+        int r = (int) std::round(std::cbrt((double)n));
+        return r * r * r == n;
+    };
+
+    int Rx = -1, Ry = -1, Rz = -1;
+    bool is2D = false, is3D = false;
+
+    if (is_perfect_square(num_destinations)) {
+        // 2D square
+        Rx = (int) std::round(std::sqrt((double)num_destinations));
+        Ry = Rx;
+        Rz = 1;
+        is2D = true;
+    } else if (is_perfect_cube(num_destinations)) {
+        // 3D cube
+        Rx = (int) std::round(std::cbrt((double)num_destinations));
+        Ry = Rx;
+        Rz = Rx;
+        is3D = true;
+    } else {
+        // Fallback: keep legacy assumption (2D square) to avoid crashes
+        // but warn loudly. This keeps backward-compat if user passes non-square N.
+        Rx = (int) std::round(std::sqrt((double)num_destinations));
+        Ry = (Rx > 0) ? (num_destinations / Rx) : -1;
+        Rz = 1;
+        is2D = (Rx * Ry == num_destinations);
+        if (!is2D) {
+            fatal("Unsupported num_dest (%d): not perfect square/cube.\n",
+                  num_destinations);
+        }
+    }
+
+    // ---- source coordinate (x,y,z) from linear id ----
+    unsigned destination = id;
+    int source = id;
+
+    int tmp = source;
+    int src_x = tmp % Rx;
+    tmp /= Rx;
+    int src_y = tmp % Ry;
+    tmp /= Ry;
+    int src_z = tmp % Rz;
+
+    // Destination coordinate to compute
+    int dest_x = src_x;
+    int dest_y = src_y;
+    int dest_z = src_z;
+
+    // Helper lambdas
+    auto lin_id = [&](int x, int y, int z) -> int {
+        // Convert (x,y,z) back to linear id
+        return (z * Ry + y) * Rx + x;
+    };
+
+    auto rand_in = [&](int r) -> int {
+        return (r > 1) ? random_mt.random<int>(0, r - 1) : 0;
+    };
+
+    auto bc_dim = [&](int coord, int R) -> int {
+        // Bit-complement in a grid sense: farthest coordinate in that dimension
+        return (R > 0) ? (R - 1 - coord) : 0;
+    };
+
+
+    // ---- Single-destination override ----
+    if (singleDest >= 0) {
         destination = singleDest;
-    } else if (traffic == UNIFORM_RANDOM_) {
+    }
+    // ---- Existing legacy patterns ----
+    else if (traffic == UNIFORM_RANDOM_) {
         destination = random_mt.random<unsigned>(0, num_destinations - 1);
     } else if (traffic == BIT_COMPLEMENT_) {
-        dest_x = radix - src_x - 1;
-        dest_y = radix - src_y - 1;
-        destination = dest_y*radix + dest_x;
+        // 2D legacy BC implemented for X/Y; extend to 3D by complementing all
+        dest_x = bc_dim(src_x, Rx);
+        dest_y = bc_dim(src_y, Ry);
+        dest_z = bc_dim(src_z, Rz);
+        destination = lin_id(dest_x, dest_y, dest_z);
     } else if (traffic == BIT_REVERSE_) {
         unsigned int straight = source;
         unsigned int reverse = source & 1; // LSB
-
-        int num_bits = (int) log2(num_destinations);
-
-        for (int i = 1; i < num_bits; i++)
-        {
+        int num_bits = (int) std::log2(num_destinations);
+        for (int i = 1; i < num_bits; i++) {
             reverse <<= 1;
             straight >>= 1;
             reverse |= (straight & 1); // LSB
         }
         destination = reverse;
     } else if (traffic == BIT_ROTATION_) {
-        if (source%2 == 0)
-            destination = source/2;
-        else // (source%2 == 1)
-            destination = ((source/2) + (num_destinations/2));
-    } else if (traffic == NEIGHBOR_) {
-            dest_x = (src_x + 1) % radix;
-            dest_y = src_y;
-            destination = dest_y*radix + dest_x;
-    } else if (traffic == SHUFFLE_) {
-        if (source < num_destinations/2)
-            destination = source*2;
+        if (source % 2 == 0)
+            destination = source / 2;
         else
-            destination = (source*2 - num_destinations + 1);
+            destination = ((source / 2) + (num_destinations / 2));
+    } else if (traffic == NEIGHBOR_) {
+        // Move +1 in X ring (2D/3D both OK; Z unchanged)
+        dest_x = (src_x + 1) % Rx;
+        destination = lin_id(dest_x, dest_y, dest_z);
+    } else if (traffic == SHUFFLE_) {
+        if (source < num_destinations / 2)
+            destination = source * 2;
+        else
+            destination = (source * 2 - num_destinations + 1);
     } else if (traffic == TRANSPOSE_) {
-            dest_x = src_y;
-            dest_y = src_x;
-            destination = dest_y*radix + dest_x;
+        // 2D transpose: swap X<->Y; 3D: swap X<->Y, keep Z
+        int tx = src_y;
+        int ty = src_x;
+        dest_x = (tx % Rx);
+        dest_y = (ty % Ry);
+        destination = lin_id(dest_x, dest_y, dest_z);
     } else if (traffic == TORNADO_) {
-        dest_x = (src_x + (int) ceil(radix/2) - 1) % radix;
-        dest_y = src_y;
-        destination = dest_y*radix + dest_x;
+        // Standard tornado along X; Z unchanged
+        int half = (int) std::ceil(Rx / 2.0) - 1;
+        if (half < 0) half = 0;
+        dest_x = (src_x + half) % Rx;
+        destination = lin_id(dest_x, dest_y, dest_z);
+    }
+    // ---- New patterns: URB (X/Y/Z) ----
+    else if (traffic == URB_X_) {
+        // Target X with BC; others UR
+        dest_x = bc_dim(src_x, Rx);
+        dest_y = rand_in(Ry);
+        dest_z = rand_in(Rz);
+        destination = lin_id(dest_x, dest_y, dest_z);
+    } else if (traffic == URB_Y_) {
+        // Target Y with BC; others UR
+        dest_x = rand_in(Rx);
+        dest_y = bc_dim(src_y, Ry);
+        dest_z = rand_in(Rz);
+        destination = lin_id(dest_x, dest_y, dest_z);
+    } else if (traffic == URB_Z_) {
+        // Target Z with BC; others UR
+        // If 2D (Rz==1), fall back to UR in 2D while keeping "intent" by BC on Y
+        if (Rz == 1) {
+            dest_x = rand_in(Rx);
+            dest_y = bc_dim(src_y, Ry);
+        } else {
+            dest_x = rand_in(Rx);
+            dest_y = rand_in(Ry);
+            dest_z = bc_dim(src_z, Rz);
+        }
+        destination = lin_id(dest_x, dest_y, dest_z);
+    }
+    // ---- New pattern: S2 (Swap-2) ----
+    else if (traffic == S2_) {
+        // Even terminals use X dimension in BC-like way; odd use Y.
+        // Other dimensions unchanged (Z unchanged for 3D).
+        bool even = (source % 2 == 0);
+        if (even) {
+            dest_x = bc_dim(src_x, Rx); // adversarial along X
+            dest_y = src_y;
+        } else {
+            dest_x = src_x;
+            dest_y = bc_dim(src_y, Ry); // adversarial along Y
+        }
+        // Z remains src_z (unused bandwidth preserved)
+        destination = lin_id(dest_x, dest_y, dest_z);
+    }
+    // ---- New pattern: DCR (Dimension Complement Reverse) ----
+    else if (traffic == DCR_) {
+        // For 3D: send to the "farthest" Z instance (complement Z plane),
+        // and distribute across that plane uniformly in X,Y.
+        // This stresses the Z bisection and models worst admissible traffic.
+        if (Rz > 1) {
+            dest_z = bc_dim(src_z, Rz);   // complement Z plane
+            dest_x = rand_in(Rx);         // distribute across plane in X
+            dest_y = rand_in(Ry);         // and Y
+        } else {
+            // 2D fallback: choose farthest Y row and distribute across X.
+            dest_y = bc_dim(src_y, Ry);
+            dest_x = rand_in(Rx);
+        }
+        destination = lin_id(dest_x, dest_y, dest_z);
     }
     else {
         fatal("Unknown Traffic Type: %s!\n", traffic);
@@ -334,6 +462,16 @@ GarnetSyntheticTraffic::initTrafficType()
     trafficStringToEnum["tornado"] = TORNADO_;
     trafficStringToEnum["transpose"] = TRANSPOSE_;
     trafficStringToEnum["uniform_random"] = UNIFORM_RANDOM_;
+    // Uniform Random Bisection variants
+    trafficStringToEnum["urbx"] = URB_X_;
+    trafficStringToEnum["urby"] = URB_Y_;
+    trafficStringToEnum["urbz"] = URB_Z_;
+
+    // Swap-2
+    trafficStringToEnum["s2"] = S2_;
+
+    // Dimension Complement Reverse
+    trafficStringToEnum["dcr"] = DCR_;
 }
 
 void
