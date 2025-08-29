@@ -198,7 +198,7 @@ GarnetSyntheticTraffic::generatePkt()
     };
 
     int Rx = -1, Ry = -1, Rz = -1;
-    bool is2D = false, is3D = false;
+    bool is2D = false;
 
     if (is_perfect_square(num_destinations)) {
         // 2D square
@@ -211,7 +211,7 @@ GarnetSyntheticTraffic::generatePkt()
         Rx = (int) std::round(std::cbrt((double)num_destinations));
         Ry = Rx;
         Rz = Rx;
-        is3D = true;
+        is2D = false;
     } else {
         // Fallback: keep legacy assumption (2D square) to avoid crashes
         // but warn loudly. This keeps backward-compat if user passes non-square N.
@@ -242,19 +242,23 @@ GarnetSyntheticTraffic::generatePkt()
     int dest_z = src_z;
 
     // Helper lambdas
-    auto lin_id = [&](int x, int y, int z) -> int {
-        // Convert (x,y,z) back to linear id
-        return (z * Ry + y) * Rx + x;
-    };
+    // auto lin_id = [&](int x, int y, int z) -> int {
+    //     // Convert (x,y,z) back to linear id
+    //     return (z * Ry + y) * Rx + x;
+    // };
 
-    auto rand_in = [&](int r) -> int {
-        return (r > 1) ? random_mt.random<int>(0, r - 1) : 0;
-    };
+    // auto rand_in = [&](int r) -> int {
+    //     return (r > 1) ? random_mt.random<int>(0, r - 1) : 0;
+    // };
 
-    auto bc_dim = [&](int coord, int R) -> int {
-        // Bit-complement in a grid sense: farthest coordinate in that dimension
-        return (R > 0) ? (R - 1 - coord) : 0;
-    };
+    // auto bc_dim = [&](int coord, int R) -> int {
+    //     // Bit-complement in a grid sense: farthest coordinate in that dimension
+    //     return (R > 0) ? (R - 1 - coord) : 0;
+    // };
+
+    #define lin_id(x, y, z) ((z * Ry + y) * Rx + x)
+    #define rand_in(r) ((r > 1) ? random_mt.random<int>(0, r - 1) : 0)
+    #define bc_dim(coord, R) ((R > 0) ? (R - 1 - coord) : 0)
 
 
     // ---- Single-destination override ----
@@ -324,7 +328,7 @@ GarnetSyntheticTraffic::generatePkt()
     } else if (traffic == URB_Z_) {
         // Target Z with BC; others UR
         // If 2D (Rz==1), fall back to UR in 2D while keeping "intent" by BC on Y
-        if (Rz == 1) {
+        if (is2D) {
             dest_x = rand_in(Rx);
             dest_y = bc_dim(src_y, Ry);
         } else {
@@ -354,7 +358,7 @@ GarnetSyntheticTraffic::generatePkt()
         // For 3D: send to the "farthest" Z instance (complement Z plane),
         // and distribute across that plane uniformly in X,Y.
         // This stresses the Z bisection and models worst admissible traffic.
-        if (Rz > 1) {
+        if (!is2D) {
             dest_z = bc_dim(src_z, Rz);   // complement Z plane
             dest_x = rand_in(Rx);         // distribute across plane in X
             dest_y = rand_in(Ry);         // and Y
@@ -368,6 +372,10 @@ GarnetSyntheticTraffic::generatePkt()
     else {
         fatal("Unknown Traffic Type: %s!\n", traffic);
     }
+
+    #undef lin_id
+    #undef rand_in
+    #undef bc_dim
 
     // The source of the packets is a cache.
     // The destination of the packets is a directory.
