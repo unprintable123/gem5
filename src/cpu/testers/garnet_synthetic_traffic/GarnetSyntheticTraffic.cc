@@ -355,17 +355,19 @@ GarnetSyntheticTraffic::generatePkt()
     }
     // ---- New pattern: DCR (Dimension Complement Reverse) ----
     else if (traffic == DCR_) {
-        // For 3D: send to the "farthest" Z instance (complement Z plane),
-        // and distribute across that plane uniformly in X,Y.
-        // This stresses the Z bisection and models worst admissible traffic.
-        if (!is2D) {
-            dest_z = bc_dim(src_z, Rz);   // complement Z plane
-            dest_x = rand_in(Rx);         // distribute across plane in X
-            dest_y = rand_in(Ry);         // and Y
+        // Dimension Complement Reverse (DCR)
+        // 3D: (x,y,z) -> (z_bar, y_bar, x_bar), where u_bar = k-1-u.
+        // 2D: (x,y)   -> (y_bar, x_bar). The server index 'w' is not modeled here.
+        if (Rz > 1) {
+            // Assume a cube HyperX: Rx == Ry == Rz == k
+            // Reverse dimension order and complement each coordinate.
+            dest_x = bc_dim(src_z, Rx); // complement of z placed on X
+            dest_y = bc_dim(src_y, Ry); // complement of y placed on Y
+            dest_z = bc_dim(src_x, Rz); // complement of x placed on Z
         } else {
-            // 2D fallback: choose farthest Y row and distribute across X.
-            dest_y = bc_dim(src_y, Ry);
-            dest_x = rand_in(Rx);
+            // 2D variant: reverse (x,y) -> (y,x) and complement both.
+            dest_x = bc_dim(src_y, Rx); // complement of y placed on X
+            dest_y = bc_dim(src_x, Ry); // complement of x placed on Y
         }
         destination = lin_id(dest_x, dest_y, dest_z);
     }
