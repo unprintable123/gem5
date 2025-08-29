@@ -38,6 +38,11 @@
 #include "mem/ruby/network/garnet/Router.hh"
 #include "mem/ruby/slicc_interface/Message.hh"
 
+#include <cstdlib>    // getenv
+#include <sstream>
+#include <cstring>
+#include <cctype>
+
 namespace gem5
 {
 
@@ -277,6 +282,10 @@ int
 RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
                                     PortDirection inport_dirn)
 {
+    auto* net = m_router->get_net_ptr();
+    const int    rr_mode     = net->getDimWarRRMode();
+    const double tie_eps     = net->getDimWarTieEps();
+
     const int num_rows = m_router->get_net_ptr()->getNumRows();
     const int num_cols = m_router->get_net_ptr()->getNumCols();
     const int my = m_router->get_id();
@@ -354,42 +363,105 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
     }
 
     // Choose the least congested candidate
+    std::vector<double> weights(candidates.size(), 0.0);
     double best_w = 1e100;
-    int best = -1;
-    int best_cls = 0;
-    for (int i = 0; i < (int)candidates.size(); ++i)
-    {
-        double w = dimwarWeight(candidates[i], route.vnet, rem_hops[i]);
-        if (w < best_w)
-        {
-            best_w = w;
-            best = candidates[i];
-            best_cls = classes[i];
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        weights[i] = dimwarWeight(candidates[i], route.vnet, rem_hops[i]);
+        if (weights[i] < best_w) best_w = weights[i];
+    }
+
+    // find all argmins (within tie_eps)
+    std::vector<int> argmins;
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        if (std::abs(weights[i] - best_w) <= tie_eps) {
+            argmins.push_back((int)i);
         }
     }
 
-    // Remember the route class for the next hop
-    m_router->getInputUnit(inport)->setPendingRouteClass(best_cls);
+    // round-robin among the argmins, with preference to minimal routes
+    int dim_idx = (x_unaligned ? 0 : 1);
 
-    assert(best != -1);
-    return best;
+    // deroute-only mode
+    if (rr_mode == 2) {
+        std::vector<int> d_idx;
+        for (int i = 0; i < (int)candidates.size(); ++i)
+            if (classes[i] == 1) d_idx.push_back(i);
+        if (!d_idx.empty()) {
+            int pick = d_idx[m_rr_idx[dim_idx] % d_idx.size()];
+            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)d_idx.size());
+            // set pending class for this input (for next head)
+            m_router->getInputUnit(inport)->setPendingRouteClass(1);
+            return candidates[pick];
+        }
+        // else fall through to normal selection below
+    }
+
+    // tie-only or off mode
+    int chosen_i = -1;
+    if (rr_mode == 1) {
+        std::vector<int> tie_deroutes, tie_others;
+        for (int idx : argmins) {
+            ((classes[idx]==1) ? tie_deroutes : tie_others).push_back(idx);
+        }
+        if (!tie_deroutes.empty()) {
+            int pick = tie_deroutes[m_rr_idx[dim_idx] % tie_deroutes.size()];
+            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)tie_deroutes.size());
+            chosen_i = pick;
+        } else if (!tie_others.empty()) {
+            // no deroute ties, pick among the others
+            int pick = tie_others[m_rr_idx[dim_idx] % tie_others.size()];
+            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)tie_others.size());
+            chosen_i = pick;
+        }
+    }
+
+    // if still not chosen, pick the first argmin
+    if (chosen_i == -1) {
+        // off mode, or rr_mode=1 but no ties
+        chosen_i = argmins.empty() ? 0 : argmins.front();
+    }
+
+    // set pending class for this input (for next head)
+    int best_cls = classes[chosen_i];
+    m_router->getInputUnit(inport)->setPendingRouteClass(best_cls);
+    return candidates[chosen_i];
 }
 
-// A simple congestion metric times the remaining hops
+
 double
 RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops)
 {
-    auto *out = m_router->getOutputUnit(outport_idx);
+    auto* out = m_router->getOutputUnit(outport_idx);
 
-    // the more free VCs and credits, the less congested
-    // (a simple, monotonic approximation; you can replace it with something fancier)
+    auto* net = m_router->get_net_ptr();
+    const int    mode  = net->getDimWarWeightMode();
+    const double A     = net->getDimWarAlpha();
+    const double B     = net->getDimWarBeta();
+    const double G     = net->getDimWarGamma();
+
+    // cong1 = 1/(1+free_vcs), cong2 = 1/(1+sum_credits)
     int free_vcs = out->num_free_vcs(vnet);
     int sum_creds = out->sum_credits(vnet);
+    double cong1 = 1.0 / (1.0 + (double)free_vcs);
+    double cong2 = 1.0 / (1.0 + (double)sum_creds);
+    double hops  = (double)remaining_hops;
 
-    // avoid div-by-zero
-    double cong = 1.0 / (1 + free_vcs) + 1.0 / (1 + sum_creds);
-
-    return cong * (double)remaining_hops;
+    switch (mode) {
+    case 0: // hop_x_cong
+        return cong1 * hops;
+    case 1: // linear: alpha*hops + beta*cong1
+        return A * hops + B * cong1;
+    case 2: // credits: alpha*hops + beta*cong2
+        return A * hops + B * cong2;
+    case 3: // hop only
+        return hops;
+    case 4: // cong only
+        return cong1;
+    case 5: // hybrid: alpha*hops + beta*cong1 + gamma*cong2
+        return A * hops + B * cong1 + G * cong2;
+    default:
+        return cong1 * hops;
+    }
 }
 
 } // namespace garnet

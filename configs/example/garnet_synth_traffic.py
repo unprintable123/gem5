@@ -138,12 +138,43 @@ parser.add_argument(
                         Default is 4.",
 )
 
+parser.add_argument(
+    "--dimwar-weight",
+    default="hop_x_cong",
+    choices=["hop", "cong", "hop_x_cong", "linear", "credits", "hybrid"],
+)
+parser.add_argument("--dimwar-alpha", type=float, default=1.0)
+parser.add_argument("--dimwar-beta", type=float, default=1.0)
+parser.add_argument("--dimwar-gamma", type=float, default=0.0)
+parser.add_argument(
+    "--dimwar-rr", default="tie", choices=["off", "tie", "deroute"]
+)
+parser.add_argument("--dimwar-tie-eps", type=float, default=1e-9)
+
+
 #
 # Add the ruby specific and protocol specific options
 #
 Ruby.define_options(parser)
 
 args = parser.parse_args()
+
+WEIGHT2INT = {
+    "hop_x_cong": 0,
+    "linear": 1,
+    "credits": 2,
+    "hop": 3,
+    "cong": 4,
+    "hybrid": 5,
+}
+RR2INT = {
+    "off": 0,
+    "tie": 1,
+    "deroute": 2,
+}
+
+args.dimwar_weight_mode = WEIGHT2INT[args.dimwar_weight]
+args.dimwar_rr_mode = RR2INT[args.dimwar_rr]
 
 cpus = [
     GarnetSyntheticTraffic(

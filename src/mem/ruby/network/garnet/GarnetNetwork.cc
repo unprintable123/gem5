@@ -103,6 +103,14 @@ GarnetNetwork::GarnetNetwork(const Params &p)
         ni->init_net_ptr(this);
     }
 
+    // --- DimWAR params ---
+    m_dimwar_weight_mode = p.dimwar_weight_mode;
+    m_dimwar_alpha       = p.dimwar_alpha;
+    m_dimwar_beta        = p.dimwar_beta;
+    m_dimwar_gamma       = p.dimwar_gamma;
+    m_dimwar_rr_mode     = p.dimwar_rr_mode;
+    m_dimwar_tie_eps     = p.dimwar_tie_eps;
+
     // Print Garnet version
     inform("Garnet version %s\n", garnetVersion);
 }

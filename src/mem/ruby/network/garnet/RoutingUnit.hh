@@ -98,6 +98,8 @@ class RoutingUnit
     std::map<int, PortDirection> m_inports_idx2dirn;
     std::map<int, PortDirection> m_outports_idx2dirn;
     std::map<PortDirection, int> m_outports_dirn2idx;
+
+    std::array<int,2> m_rr_idx{{0,0}};
 };
 
 } // namespace garnet

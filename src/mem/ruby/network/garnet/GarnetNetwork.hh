@@ -95,6 +95,14 @@ class GarnetNetwork : public Network
     int getNumRouters();
     int get_router_id(int ni, int vnet);
 
+    // getters for RoutingUnit
+    int    getDimWarWeightMode() const { return m_dimwar_weight_mode; }
+    double getDimWarAlpha()      const { return m_dimwar_alpha; }
+    double getDimWarBeta()       const { return m_dimwar_beta; }
+    double getDimWarGamma()      const { return m_dimwar_gamma; }
+    int    getDimWarRRMode()     const { return m_dimwar_rr_mode; }
+    double getDimWarTieEps()     const { return m_dimwar_tie_eps; }
+
 
     // Methods used by Topology to setup the network
     void makeExtOutLink(SwitchID src, NodeID dest, BasicLink* link,
@@ -202,6 +210,14 @@ class GarnetNetwork : public Network
 
     std::vector<std::vector<statistics::Scalar *>> m_data_traffic_distribution;
     std::vector<std::vector<statistics::Scalar *>> m_ctrl_traffic_distribution;
+
+    // --- DimWAR params (backed by SimObject) ---
+    int    m_dimwar_weight_mode;
+    double m_dimwar_alpha;
+    double m_dimwar_beta;
+    double m_dimwar_gamma;
+    int    m_dimwar_rr_mode;
+    double m_dimwar_tie_eps;
 
   private:
     GarnetNetwork(const GarnetNetwork& obj);

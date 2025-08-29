@@ -52,6 +52,16 @@ class GarnetNetwork(RubyNetwork):
         50000, "network-level deadlock threshold"
     )
 
+    # --- DimWAR tuning knobs (PARAMs controlled from Python) ---
+    dimwar_weight_mode = Param.Int(
+        0, "0 hop_x_cong; 1 linear; 2 credits; 3 hop; 4 cong; 5 hybrid"
+    )
+    dimwar_alpha = Param.Float(1.0, "alpha for weight")
+    dimwar_beta = Param.Float(1.0, "beta for weight")
+    dimwar_gamma = Param.Float(0.0, "gamma for hybrid")
+    dimwar_rr_mode = Param.Int(1, "0 off; 1 tie-only RR; 2 deroute-only RR")
+    dimwar_tie_eps = Param.Float(1e-9, "tie threshold for RR")
+
 
 class GarnetNetworkInterface(ClockedObject):
     type = "GarnetNetworkInterface"

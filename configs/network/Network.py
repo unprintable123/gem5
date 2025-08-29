@@ -171,6 +171,12 @@ def init_network(options, network, InterfaceClass):
         network.ni_flit_size = options.link_width_bits / 8
         network.routing_algorithm = options.routing_algorithm
         network.garnet_deadlock_threshold = options.garnet_deadlock_threshold
+        network.dimwar_weight_mode = options.dimwar_weight_mode
+        network.dimwar_alpha = options.dimwar_alpha
+        network.dimwar_beta = options.dimwar_beta
+        network.dimwar_gamma = options.dimwar_gamma
+        network.dimwar_rr_mode = options.dimwar_rr_mode
+        network.dimwar_tie_eps = options.dimwar_tie_eps
 
         # Create Bridges and connect them to the corresponding links
         for intLink in network.int_links:
