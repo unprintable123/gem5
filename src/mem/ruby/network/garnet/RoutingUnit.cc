@@ -282,10 +282,6 @@ int
 RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
                                     PortDirection inport_dirn)
 {
-    auto* net = m_router->get_net_ptr();
-    const int    rr_mode     = net->getDimWarRRMode();
-    const double tie_eps     = net->getDimWarTieEps();
-
     const int num_rows = m_router->get_net_ptr()->getNumRows();
     const int num_cols = m_router->get_net_ptr()->getNumCols();
     const int my = m_router->get_id();
@@ -362,69 +358,36 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
         return lookupRoutingTable(route.vnet, route.net_dest);
     }
 
-    // Choose the least congested candidate
-    std::vector<double> weights(candidates.size(), 0.0);
+    if (!allow_deroute) {
+        assert(candidates.size() == 1);
+        m_router->getInputUnit(inport)->setPendingRouteClass(0);
+        return candidates[0];
+    }
+
+    assert(candidates.size() == dim ? num_rows - 1 : num_cols - 1);
+
     double best_w = 1e100;
-    for (size_t i = 0; i < candidates.size(); ++i) {
-        weights[i] = dimwarWeight(candidates[i], route.vnet, rem_hops[i]);
-        if (weights[i] < best_w) best_w = weights[i];
-    }
-
-    // find all argmins (within tie_eps)
-    std::vector<int> argmins;
-    for (size_t i = 0; i < candidates.size(); ++i) {
-        if (std::abs(weights[i] - best_w) <= tie_eps) {
-            argmins.push_back((int)i);
+    int best = -1;
+    int best_cls = 0;
+    for (int i = 0; i < (int)candidates.size(); ++i)
+    {
+        int i_rr = (i + m_rr_idx[dim]) % candidates.size();
+        double w = dimwarWeight(candidates[i_rr], route.vnet, rem_hops[i_rr]);
+        if (w < best_w - 1e-9) // avoid floating-point tie
+        {
+            best_w = w;
+            best = candidates[i_rr];
+            best_cls = classes[i_rr];
         }
     }
 
-    // round-robin among the argmins, with preference to minimal routes
-    int dim_idx = (x_unaligned ? 0 : 1);
-
-    // deroute-only mode
-    if (rr_mode == 2) {
-        std::vector<int> d_idx;
-        for (int i = 0; i < (int)candidates.size(); ++i)
-            if (classes[i] == 1) d_idx.push_back(i);
-        if (!d_idx.empty()) {
-            int pick = d_idx[m_rr_idx[dim_idx] % d_idx.size()];
-            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)d_idx.size());
-            // set pending class for this input (for next head)
-            m_router->getInputUnit(inport)->setPendingRouteClass(1);
-            return candidates[pick];
-        }
-        // else fall through to normal selection below
-    }
-
-    // tie-only or off mode
-    int chosen_i = -1;
-    if (rr_mode == 1) {
-        std::vector<int> tie_deroutes, tie_others;
-        for (int idx : argmins) {
-            ((classes[idx]==1) ? tie_deroutes : tie_others).push_back(idx);
-        }
-        if (!tie_deroutes.empty()) {
-            int pick = tie_deroutes[m_rr_idx[dim_idx] % tie_deroutes.size()];
-            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)tie_deroutes.size());
-            chosen_i = pick;
-        } else if (!tie_others.empty()) {
-            // no deroute ties, pick among the others
-            int pick = tie_others[m_rr_idx[dim_idx] % tie_others.size()];
-            m_rr_idx[dim_idx] = (m_rr_idx[dim_idx] + 1) % std::max(1,(int)tie_others.size());
-            chosen_i = pick;
-        }
-    }
-
-    // if still not chosen, pick the first argmin
-    if (chosen_i == -1) {
-        // off mode, or rr_mode=1 but no ties
-        chosen_i = argmins.empty() ? 0 : argmins.front();
-    }
-
-    // set pending class for this input (for next head)
-    int best_cls = classes[chosen_i];
+    // Remember the route class for the next hop
     m_router->getInputUnit(inport)->setPendingRouteClass(best_cls);
-    return candidates[chosen_i];
+    // Update the round-robin index for next time
+    m_rr_idx[dim] = (m_rr_idx[dim] + 1) % candidates.size();
+
+    assert(best != -1);
+    return best;
 }
 
 

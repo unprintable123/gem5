@@ -146,10 +146,6 @@ parser.add_argument(
 parser.add_argument("--dimwar-alpha", type=float, default=1.0)
 parser.add_argument("--dimwar-beta", type=float, default=1.0)
 parser.add_argument("--dimwar-gamma", type=float, default=0.0)
-parser.add_argument(
-    "--dimwar-rr", default="tie", choices=["off", "tie", "deroute"]
-)
-parser.add_argument("--dimwar-tie-eps", type=float, default=1e-9)
 
 
 #
@@ -167,14 +163,8 @@ WEIGHT2INT = {
     "cong": 4,
     "hybrid": 5,
 }
-RR2INT = {
-    "off": 0,
-    "tie": 1,
-    "deroute": 2,
-}
 
 args.dimwar_weight_mode = WEIGHT2INT[args.dimwar_weight]
-args.dimwar_rr_mode = RR2INT[args.dimwar_rr]
 
 cpus = [
     GarnetSyntheticTraffic(

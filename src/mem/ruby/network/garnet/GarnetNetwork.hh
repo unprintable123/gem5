@@ -100,8 +100,6 @@ class GarnetNetwork : public Network
     double getDimWarAlpha()      const { return m_dimwar_alpha; }
     double getDimWarBeta()       const { return m_dimwar_beta; }
     double getDimWarGamma()      const { return m_dimwar_gamma; }
-    int    getDimWarRRMode()     const { return m_dimwar_rr_mode; }
-    double getDimWarTieEps()     const { return m_dimwar_tie_eps; }
 
 
     // Methods used by Topology to setup the network
@@ -216,8 +214,6 @@ class GarnetNetwork : public Network
     double m_dimwar_alpha;
     double m_dimwar_beta;
     double m_dimwar_gamma;
-    int    m_dimwar_rr_mode;
-    double m_dimwar_tie_eps;
 
   private:
     GarnetNetwork(const GarnetNetwork& obj);
