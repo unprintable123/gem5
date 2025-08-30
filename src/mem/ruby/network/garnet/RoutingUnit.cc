@@ -355,7 +355,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
     // If no candidates found, fall back to routing table
     if (candidates.empty())
     {
-        return lookupRoutingTable(route.vnet, route.net_dest);
+        fatal("DimWar: no candidates found");
     }
 
     if (!allow_deroute) {
@@ -364,7 +364,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
         return candidates[0];
     }
 
-    assert(candidates.size() == dim ? num_rows - 1 : num_cols - 1);
+    assert(candidates.size() == (dim ? num_rows - 1 : num_cols - 1));
 
     double best_w = 1e100;
     int best = -1;

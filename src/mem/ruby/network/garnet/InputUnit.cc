@@ -105,7 +105,10 @@ InputUnit::wakeup()
 
             if (alg == DIMWAR_)
             {
-                m_last_head_in_class = vc % m_vc_per_vnet;
+                m_last_head_in_class = (2 * vc) / m_vc_per_vnet;
+                if (m_direction == "Local") {
+                    m_last_head_in_class = 0;
+                }
             }
 
             // Route computation for this vc
