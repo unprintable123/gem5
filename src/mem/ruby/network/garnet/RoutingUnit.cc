@@ -386,6 +386,11 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
     // Update the round-robin index for next time
     m_rr_idx[dim] = (m_rr_idx[dim] + 1) % candidates.size();
 
+    DPRINTF(RubyNetwork, "DimWar: router %d (%d,%d) dst %d (%d,%d) "
+            "inport %d (%s) dim %d candidates, rr %d, outport %s\n",
+            my, my_x, my_y, dst, dst_x, dst_y,
+            inport, inport_dirn, dim, m_rr_idx[dim], m_outports_idx2dirn[best]);
+
     assert(best != -1);
     return best;
 }
@@ -402,11 +407,10 @@ RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops)
     const double B     = net->getDimWarBeta();
     const double G     = net->getDimWarGamma();
 
-    // cong1 = 1/(1+free_vcs), cong2 = 1/(1+sum_credits)
-    int free_vcs = out->num_free_vcs(vnet);
-    int sum_creds = out->sum_credits(vnet);
-    double cong1 = 1.0 / (1.0 + (double)free_vcs);
-    double cong2 = 1.0 / (1.0 + (double)sum_creds);
+    int used_vcs = out->num_used_vcs(vnet);
+    int sum_creds = out->sum_used_credits(vnet);
+    double cong1 = (1.0 + (double)used_vcs);
+    double cong2 = (1.0 + (double)sum_creds);
     double hops  = (double)remaining_hops;
 
     switch (mode) {
