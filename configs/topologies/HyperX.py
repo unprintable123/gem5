@@ -38,12 +38,13 @@ class HyperX(SimpleTopology):
 
     def __init__(self, controllers):
         self.nodes = controllers
+        print("Number of Nodes:", len(self.nodes))
 
     def makeTopology(self, options, network, IntLink, ExtLink, Router):
         nodes = self.nodes
 
-        num_routers = options.num_cpus
         num_rows = options.mesh_rows
+        num_routers = num_rows**2
 
         # default values for link latency and router latency.
         # Can be over-ridden on a per link/router basis
