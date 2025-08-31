@@ -231,6 +231,23 @@ OutputUnit::select_free_vc_biased(int vnet, int prefer_class)
     return select_free_vc(vnet);
 }
 
+bool OutputUnit::has_free_vc_biased(int vnet, int prefer_class)
+{
+    int vc_base = vnet*m_vc_per_vnet;
+    int half = m_vc_per_vnet / 2;
+
+    if (prefer_class == 1) {
+        vc_base += half;
+    }
+
+    for (int vc = vc_base; vc < vc_base + half; vc++) {
+        if (is_vc_idle(vc, curTick()))
+            return true;
+    }
+
+    return false;
+}
+
 void
 OutputUnit::insert_flit(flit *t_flit)
 {

@@ -286,6 +286,8 @@ SwitchAllocator::send_allowed(int inport, int invc, int outport, int outvc)
     // Check if outvc needed
     // Check if credit needed (for multi-flit packet)
     // Check if ordering violated (in ordered vnet)
+    RoutingAlgorithm alg =
+        (RoutingAlgorithm) m_router->get_net_ptr()->getRoutingAlgorithm();
 
     int vnet = get_vnet(invc);
     bool has_outvc = (outvc != -1);
@@ -297,7 +299,17 @@ SwitchAllocator::send_allowed(int inport, int invc, int outport, int outvc)
         // needs outvc
         // this is only true for HEAD and HEAD_TAIL flits.
 
-        if (output_unit->has_free_vc(vnet)) {
+        bool has_free = false;
+
+        if (alg == DIMWAR_) {
+            has_free = output_unit->has_free_vc_biased(vnet,
+                                        m_router->getInputUnit(inport)
+                                            ->getRouteClass(invc));
+        } else {
+            has_free = output_unit->has_free_vc(vnet);
+        }
+
+        if (has_free) {
 
             has_outvc = true;
 

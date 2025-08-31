@@ -103,6 +103,7 @@ class OutputUnit : public Consumer
 
     // Prefer VC class (0 = lower half, 1 = upper half) when selecting a free VC.
     int select_free_vc_biased(int vnet, int prefer_class);
+    bool has_free_vc_biased(int vnet, int prefer_class);
 
     void insert_flit(flit *t_flit);
 
