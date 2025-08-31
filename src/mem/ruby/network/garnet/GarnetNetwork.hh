@@ -34,6 +34,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 
 #include "mem/ruby/network/Network.hh"
 #include "mem/ruby/network/fault_model/FaultModel.hh"
@@ -208,6 +209,7 @@ class GarnetNetwork : public Network
 
     std::vector<std::vector<statistics::Scalar *>> m_data_traffic_distribution;
     std::vector<std::vector<statistics::Scalar *>> m_ctrl_traffic_distribution;
+    std::map<int, statistics::Scalar *> m_average_link_utilization_distribution;
 
     // --- DimWAR params (backed by SimObject) ---
     int    m_dimwar_weight_mode;

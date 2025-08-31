@@ -43,6 +43,7 @@
 #include "mem/ruby/network/garnet/GarnetLink.hh"
 #include "mem/ruby/network/garnet/NetworkInterface.hh"
 #include "mem/ruby/network/garnet/NetworkLink.hh"
+#include "mem/ruby/network/garnet/OutputUnit.hh"
 #include "mem/ruby/network/garnet/Router.hh"
 #include "mem/ruby/system/RubySystem.hh"
 
@@ -559,6 +560,21 @@ GarnetNetwork::regStats()
         }
     }
 
+    for (int source = 0; source < m_routers.size(); source++) {
+        Router *router = m_routers[source];
+        for (int i = 0; i < router->get_num_outports(); i++) {
+            OutputUnit *output = router->getOutputUnit(i);
+            std::string port_direction = output->get_direction();
+            int link_id = output->get_outlink_id();
+
+            statistics::Scalar *link_util = new statistics::Scalar();
+            link_util->name(name() + ".link_utilization." + "r" +
+                    std::to_string(source) + "." + port_direction + "." +
+                    "l" + std::to_string(link_id));
+            m_average_link_utilization_distribution[link_id] = link_util;
+        }
+    }
+
     // m_total_cycles
     //     .name(name() + ".total_cycles")
     //     .flags(statistics::oneline).unit(statistics::units::Cycle::get());
@@ -581,6 +597,7 @@ GarnetNetwork::collateStats()
     for (int i = 0; i < m_networklinks.size(); i++) {
         link_type type = m_networklinks[i]->getType();
         int activity = m_networklinks[i]->getLinkUtilization();
+        int link_id = m_networklinks[i]->get_id();
 
         if (type == EXT_IN_)
             m_total_ext_in_link_utilization += activity;
@@ -595,6 +612,12 @@ GarnetNetwork::collateStats()
         std::vector<unsigned int> vc_load = m_networklinks[i]->getVcLoad();
         for (int j = 0; j < vc_load.size(); j++) {
             m_average_vc_load[j] += ((double)vc_load[j] / time_delta);
+        }
+
+        if (m_average_link_utilization_distribution.find(link_id) !=
+            m_average_link_utilization_distribution.end()) {
+            *m_average_link_utilization_distribution[link_id] =
+                (double(activity) / time_delta);
         }
     }
 
