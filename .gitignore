@@ -33,3 +33,5 @@ configs/dram/lowp_sweep.cfg
 .pyenv
 .vscode
 logs
+plots
+runs_syn_cmp
