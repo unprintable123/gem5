@@ -79,7 +79,7 @@ class RoutingUnit
                              PortDirection inport_dirn);
 
     int outportComputeDimWar(RouteInfo route, int inport, PortDirection inport_dirn);
-    double dimwarWeight(int outport_idx, int vnet, int remaining_hops);
+    double dimwarWeight(int outport_idx, int vnet, int remaining_hops, int route_class);
 
     // Returns true if vnet is present in the vector
     // of vnets or if the vector supports all vnets.

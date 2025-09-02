@@ -46,8 +46,8 @@ namespace ruby
 namespace garnet
 {
 
-SwitchAllocator::SwitchAllocator(Router *router)
-    : Consumer(router)
+SwitchAllocator::SwitchAllocator(Router *router, bool enable_switch_collision_avoidance)
+    : Consumer(router), m_enable_switch_collision_avoidance(enable_switch_collision_avoidance)
 {
     m_router = router;
     m_num_vcs = m_router->get_num_vcs();
@@ -110,12 +110,15 @@ SwitchAllocator::wakeup()
 void
 SwitchAllocator::arbitrate_inports()
 {
+    std::set<int> requested_outports;
+
     // Select a VC from each input in a round robin manner
     // Independent arbiter at each input port
-    for (int inport = 0; inport < m_num_inports; inport++) {
+    for (int inport_iter = 0; inport_iter < m_num_inports; inport_iter++) {
+        int inport = (m_round_robin_inport_index + inport_iter) % m_num_inports;
         int invc = m_round_robin_invc[inport];
 
-        for (int invc_iter = 0; invc_iter < m_num_vcs; invc_iter++) {
+        for (int invc_iter = 0; invc_iter < 2 * m_num_vcs; invc_iter++) {
             auto input_unit = m_router->getInputUnit(inport);
 
             if (input_unit->need_stage(invc, SA_, curTick())) {
@@ -123,6 +126,16 @@ SwitchAllocator::arbitrate_inports()
 
                 int outport = input_unit->get_outport(invc);
                 int outvc = input_unit->get_outvc(invc);
+
+                if (m_enable_switch_collision_avoidance && invc_iter < m_num_vcs && requested_outports.find(outport) !=
+                    requested_outports.end()) {
+                    // This output port has already been requested
+                    // by another input port.
+                    invc++;
+                    if (invc >= m_num_vcs)
+                        invc = 0;
+                    continue;
+                }
 
                 // check if the flit in this InputVC is allowed to be sent
                 // send_allowed conditions described in that function.
@@ -133,6 +146,7 @@ SwitchAllocator::arbitrate_inports()
                     m_input_arbiter_activity++;
                     m_port_requests[inport] = outport;
                     m_vc_winners[inport] = invc;
+                    requested_outports.insert(outport);
 
                     break; // got one vc winner for this port
                 }
@@ -143,6 +157,10 @@ SwitchAllocator::arbitrate_inports()
                 invc = 0;
         }
     }
+
+    DPRINTF(RubyNetwork, "SwitchAllocator at Router %d "
+                            "input arbiter activity = %d\n",
+            m_router->get_id(), requested_outports.size());
 }
 
 /*

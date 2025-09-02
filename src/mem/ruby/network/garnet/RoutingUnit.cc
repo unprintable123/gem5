@@ -372,7 +372,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
     for (int i = 0; i < (int)candidates.size(); ++i)
     {
         int i_rr = (i + m_rr_idx[dim]) % candidates.size();
-        double w = dimwarWeight(candidates[i_rr], route.vnet, rem_hops[i_rr]);
+        double w = dimwarWeight(candidates[i_rr], route.vnet, rem_hops[i_rr], classes[i_rr]);
         if (w < best_w - 1e-9) // avoid floating-point tie
         {
             best_w = w;
@@ -397,7 +397,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
 
 
 double
-RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops)
+RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops, int route_class)
 {
     auto* out = m_router->getOutputUnit(outport_idx);
 
@@ -407,27 +407,24 @@ RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops)
     const double B     = net->getDimWarBeta();
     const double G     = net->getDimWarGamma();
 
-    int used_vcs = out->num_used_vcs(vnet);
-    int sum_creds = out->sum_used_credits(vnet);
-    double cong1 = (1.0 + (double)used_vcs);
-    double cong2 = (1.0 + (double)sum_creds);
-    double hops  = (double)remaining_hops;
+    int sum_creds_biased = out->sum_used_credits_biased(vnet, route_class);
+    int used_vcs_biased = out->num_used_vcs_biased(vnet, route_class);
 
     switch (mode) {
     case 0: // hop_x_cong
-        return cong1 * hops;
-    case 1: // linear: alpha*hops + beta*cong1
-        return A * hops + B * cong1;
-    case 2: // credits: alpha*hops + beta*cong2
-        return A * hops + B * cong2;
-    case 3: // hop only
-        return hops;
-    case 4: // cong only
-        return cong1;
-    case 5: // hybrid: alpha*hops + beta*cong1 + gamma*cong2
-        return A * hops + B * cong1 + G * cong2;
+        return used_vcs_biased * remaining_hops;
+    case 1: // cong
+        return used_vcs_biased;
+    case 2: // hop
+        return remaining_hops;
+    case 3: // hop_x_credit
+        return sum_creds_biased * remaining_hops;
+    case 4: // credit
+        return sum_creds_biased;
+    case 5: // hybrid
+        return A * remaining_hops + B * used_vcs_biased + G * sum_creds_biased;
     default:
-        return cong1 * hops;
+        fatal("DimWar: unknown weight mode %d\n", mode);
     }
 }
 

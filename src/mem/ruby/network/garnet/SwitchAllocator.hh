@@ -54,7 +54,7 @@ class OutputUnit;
 class SwitchAllocator : public Consumer
 {
   public:
-    SwitchAllocator(Router *router);
+    SwitchAllocator(Router *router, bool enable_switch_collision_avoidance);
     void wakeup();
     void init();
     void clear_request_vector();
@@ -86,6 +86,8 @@ class SwitchAllocator : public Consumer
     double m_input_arbiter_activity, m_output_arbiter_activity;
 
     Router *m_router;
+    int m_round_robin_inport_index = 0;
+    bool m_enable_switch_collision_avoidance;
     std::vector<int> m_round_robin_invc;
     std::vector<int> m_round_robin_inport;
     std::vector<int> m_port_requests;

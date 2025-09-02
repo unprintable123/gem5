@@ -52,7 +52,7 @@ Router::Router(const Params &p)
   : BasicRouter(p), Consumer(this), m_latency(p.latency),
     m_virtual_networks(p.virt_nets), m_vc_per_vnet(p.vcs_per_vnet),
     m_num_vcs(m_virtual_networks * m_vc_per_vnet), m_bit_width(p.width),
-    m_network_ptr(nullptr), routingUnit(this), switchAllocator(this),
+    m_network_ptr(nullptr), routingUnit(this), switchAllocator(this, p.enable_switch_collision_avoidance),
     crossbarSwitch(this)
 {
     m_input_unit.clear();

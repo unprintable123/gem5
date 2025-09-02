@@ -146,6 +146,12 @@ parser.add_argument(
 parser.add_argument("--dimwar-alpha", type=float, default=1.0)
 parser.add_argument("--dimwar-beta", type=float, default=1.0)
 parser.add_argument("--dimwar-gamma", type=float, default=0.0)
+parser.add_argument(
+    "--enable-switch-collision-avoidance",
+    action="store_true",
+    default=False,
+    help="Enable switch collision avoidance",
+)
 
 
 #
@@ -157,10 +163,10 @@ args = parser.parse_args()
 
 WEIGHT2INT = {
     "hop_x_cong": 0,
-    "linear": 1,
-    "credits": 2,
-    "hop": 3,
-    "cong": 4,
+    "cong": 1,
+    "hop": 2,
+    "hop_x_credit": 3,
+    "credit": 4,
     "hybrid": 5,
 }
 

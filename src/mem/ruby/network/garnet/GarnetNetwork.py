@@ -59,6 +59,10 @@ class GarnetNetwork(RubyNetwork):
     dimwar_alpha = Param.Float(1.0, "alpha for weight")
     dimwar_beta = Param.Float(1.0, "beta for weight")
     dimwar_gamma = Param.Float(0.0, "gamma for hybrid")
+    enable_switch_collision_avoidance = Param.Bool(
+        False, "enable switch collision avoidance"
+    )
+    # ------------------------------------------------------------
 
 
 class GarnetNetworkInterface(ClockedObject):
@@ -90,4 +94,8 @@ class GarnetRouter(BasicRouter):
     )
     width = Param.UInt32(
         Parent.ni_flit_size, "bit width supported by the router"
+    )
+    enable_switch_collision_avoidance = Param.Bool(
+        Parent.enable_switch_collision_avoidance,
+        "enable switch collision avoidance",
     )

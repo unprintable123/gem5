@@ -98,8 +98,10 @@ class OutputUnit : public Consumer
 
     // --- DimWAR helpers (exposed for congestion metric & class-biased VC pick) ---
 
-    int num_used_vcs(int vnet);
     int sum_used_credits(int vnet);
+    int sum_used_credits_biased(int vnet, int prefer_class);
+    int num_free_vcs_biased(int vnet, int prefer_class);
+    int num_used_vcs_biased(int vnet, int prefer_class);
 
     // Prefer VC class (0 = lower half, 1 = upper half) when selecting a free VC.
     int select_free_vc_biased(int vnet, int prefer_class);

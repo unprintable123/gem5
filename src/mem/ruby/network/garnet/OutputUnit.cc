@@ -168,19 +168,6 @@ OutputUnit::set_credit_link(CreditLink *credit_link)
 }
 
 int
-OutputUnit::num_used_vcs(int vnet)
-{
-    int cnt = 0;
-    int vc_base = vnet * m_vc_per_vnet;
-    for (int vc = vc_base; vc < vc_base + m_vc_per_vnet; vc++)
-    {
-        if (!outVcState[vc].isInState(IDLE_, curTick()))
-            cnt++;
-    }
-    return cnt;
-}
-
-int
 OutputUnit::sum_used_credits(int vnet)
 {
     int sum = 0;
@@ -190,6 +177,62 @@ OutputUnit::sum_used_credits(int vnet)
         sum += outVcState[vc].get_max_credit_count() - outVcState[vc].get_credit_count();
     }
     return sum;
+}
+
+int
+OutputUnit::sum_used_credits_biased(int vnet, int prefer_class)
+{
+    int sum = 0;
+    int vc_base = vnet * m_vc_per_vnet;
+    int half = m_vc_per_vnet / 2;
+
+    if (prefer_class == 1) {
+        vc_base += half;
+    }
+
+    for (int vc = vc_base; vc < vc_base + half; vc++)
+    {
+        sum += outVcState[vc].get_max_credit_count() - outVcState[vc].get_credit_count();
+    }
+    return sum;
+}
+
+int
+OutputUnit::num_free_vcs_biased(int vnet, int prefer_class)
+{
+    int cnt = 0;
+    int vc_base = vnet * m_vc_per_vnet;
+    int half = m_vc_per_vnet / 2;
+
+    if (prefer_class == 1) {
+        vc_base += half;
+    }
+
+    for (int vc = vc_base; vc < vc_base + half; vc++)
+    {
+        if (outVcState[vc].isInState(IDLE_, curTick()))
+            cnt++;
+    }
+    return cnt;
+}
+
+int
+OutputUnit::num_used_vcs_biased(int vnet, int prefer_class)
+{
+    int cnt = 0;
+    int vc_base = vnet * m_vc_per_vnet;
+    int half = m_vc_per_vnet / 2;
+
+    if (prefer_class == 1) {
+        vc_base += half;
+    }
+
+    for (int vc = vc_base; vc < vc_base + half; vc++)
+    {
+        if (!outVcState[vc].isInState(IDLE_, curTick()))
+            cnt++;
+    }
+    return cnt;
 }
 
 int
