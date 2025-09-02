@@ -336,7 +336,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
             // minimal route
             candidates.push_back(idx);
 
-            int hops_left = 1 + ((dim == 0 && y_unaligned) ? 1 : 0);
+            int hops_left = 1;
             rem_hops.push_back(hops_left);
             classes.push_back(0); // VC0
         }
@@ -346,7 +346,7 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
             // (we are in class 1 if we deroute)
             candidates.push_back(idx);
 
-            int hops_left = 1 + 1 + ((dim == 0 && y_unaligned) ? 1 : 0);
+            int hops_left = 2;
             rem_hops.push_back(hops_left);
             classes.push_back(1); // VC1
         }
@@ -407,8 +407,8 @@ RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops, int rou
     const double B     = net->getDimWarBeta();
     const double G     = net->getDimWarGamma();
 
-    int sum_creds_biased = out->sum_used_credits_biased(vnet, route_class);
-    int used_vcs_biased = out->num_used_vcs_biased(vnet, route_class);
+    int sum_creds_biased = 1 + out->sum_used_credits_biased(vnet, route_class);
+    int used_vcs_biased = 1 + out->num_used_vcs_biased(vnet, route_class);
 
     switch (mode) {
     case 0: // hop_x_cong

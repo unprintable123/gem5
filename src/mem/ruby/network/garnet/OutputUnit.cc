@@ -236,6 +236,12 @@ OutputUnit::num_used_vcs_biased(int vnet, int prefer_class)
 }
 
 int
+OutputUnit::num_used_vcs(int vnet)
+{
+    return num_used_vcs_biased(vnet, 0) + num_used_vcs_biased(vnet, 1);
+}
+
+int
 OutputUnit::select_free_vc_biased(int vnet, int prefer_class)
 {
     // prefer_class: 0 -> lower half (minimal), 1 -> upper half (deroute)
