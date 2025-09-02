@@ -124,6 +124,7 @@ class GarnetSyntheticTraffic : public ClockedObject
     Tick noResponseCycles;
 
     int numDestinations;
+    int numRows;
     Tick simCycles;
     int numPacketsMax;
     int numPacketsSent;

@@ -81,6 +81,7 @@ GarnetSyntheticTraffic::GarnetSyntheticTraffic(const Params &p)
       size(p.memory_size),
       blockSizeBits(p.block_offset),
       numDestinations(p.num_dest),
+      numRows(p.mesh_rows),
       simCycles(p.sim_cycles),
       numPacketsMax(p.num_packets_max),
       numPacketsSent(0),
@@ -185,45 +186,8 @@ GarnetSyntheticTraffic::generatePkt()
 {
     int num_destinations = numDestinations;
 
-    // ---- Dimension inference (2D square or 3D cube only) ----
-    // Try 2D: Rx * Ry, we assume square -> Rx = Ry = sqrt(N)
-    auto is_perfect_square = [](int n) -> bool {
-        int r = (int) std::round(std::sqrt((double)n));
-        return r * r == n;
-    };
-
-    auto is_perfect_cube = [](int n) -> bool {
-        int r = (int) std::round(std::cbrt((double)n));
-        return r * r * r == n;
-    };
-
-    int Rx = -1, Ry = -1, Rz = -1;
-    bool is2D = false;
-
-    if (is_perfect_square(num_destinations)) {
-        // 2D square
-        Rx = (int) std::round(std::sqrt((double)num_destinations));
-        Ry = Rx;
-        Rz = 1;
-        is2D = true;
-    } else if (is_perfect_cube(num_destinations)) {
-        // 3D cube
-        Rx = (int) std::round(std::cbrt((double)num_destinations));
-        Ry = Rx;
-        Rz = Rx;
-        is2D = false;
-    } else {
-        // Fallback: keep legacy assumption (2D square) to avoid crashes
-        // but warn loudly. This keeps backward-compat if user passes non-square N.
-        Rx = (int) std::round(std::sqrt((double)num_destinations));
-        Ry = (Rx > 0) ? (num_destinations / Rx) : -1;
-        Rz = 1;
-        is2D = (Rx * Ry == num_destinations);
-        if (!is2D) {
-            fatal("Unsupported num_dest (%d): not perfect square/cube.\n",
-                  num_destinations);
-        }
-    }
+    int Rx = numRows, Ry = numRows, Rz = num_destinations / (numRows * numRows);
+    assert (Rx * Ry * Rz == num_destinations);
 
     // ---- source coordinate (x,y,z) from linear id ----
     unsigned destination = id;
@@ -328,14 +292,8 @@ GarnetSyntheticTraffic::generatePkt()
     } else if (traffic == URB_Z_) {
         // Target Z with BC; others UR
         // If 2D (Rz==1), fall back to UR in 2D while keeping "intent" by BC on Y
-        if (is2D) {
-            dest_x = rand_in(Rx);
-            dest_y = bc_dim(src_y, Ry);
-        } else {
-            dest_x = rand_in(Rx);
-            dest_y = rand_in(Ry);
-            dest_z = bc_dim(src_z, Rz);
-        }
+        dest_x = rand_in(Rx);
+        dest_y = bc_dim(src_y, Ry);
         destination = lin_id(dest_x, dest_y, dest_z);
     }
     // ---- New pattern: S2 (Swap-2) ----
