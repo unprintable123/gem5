@@ -399,30 +399,41 @@ RoutingUnit::outportComputeDimWar(RouteInfo route, int inport,
 double
 RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops, int route_class)
 {
-    auto* out = m_router->getOutputUnit(outport_idx);
-
     auto* net = m_router->get_net_ptr();
-    const int    mode  = net->getDimWarWeightMode();
-    const double A     = net->getDimWarAlpha();
-    const double B     = net->getDimWarBeta();
-    const double G     = net->getDimWarGamma();
+    const int mode = net->getDimWarWeightMode();
+    const double A = net->getDimWarAlpha();
+    const double B = net->getDimWarBeta();
+    const double G = net->getDimWarGamma();
 
-    int sum_creds_biased = 1 + out->sum_used_credits_biased(vnet, route_class);
-    int used_vcs_biased = 1 + out->num_used_vcs_biased(vnet, route_class);
+    int sum_credits = 2;
+    int used_vcs = 2;
+
+    int num_inports = m_router->get_num_inports();
+    int m_num_vcs = m_router->get_num_vcs();
+    for (int i = 0; i < num_inports; ++i) {
+        auto* inport = m_router->getInputUnit(i);
+        for (int vc = 0; vc < m_num_vcs; ++vc) {
+            int outport = inport->get_outport(vc);
+            if (outport == outport_idx) {
+                used_vcs++;
+                sum_credits += inport->get_buffer_size(vc);
+            }
+        }
+    }
 
     switch (mode) {
     case 0: // hop_x_cong
-        return used_vcs_biased * remaining_hops;
+        return used_vcs * remaining_hops;
     case 1: // cong
-        return used_vcs_biased;
+        return used_vcs;
     case 2: // hop
         return remaining_hops;
     case 3: // hop_x_credit
-        return sum_creds_biased * remaining_hops;
+        return sum_credits * remaining_hops;
     case 4: // credit
-        return sum_creds_biased;
+        return sum_credits;
     case 5: // hybrid
-        return A * remaining_hops + B * used_vcs_biased + G * sum_creds_biased;
+        return A * remaining_hops + B * used_vcs + G * sum_credits;
     default:
         fatal("DimWar: unknown weight mode %d\n", mode);
     }

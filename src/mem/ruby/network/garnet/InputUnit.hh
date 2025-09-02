@@ -99,6 +99,12 @@ class InputUnit : public Consumer
         return virtualChannels[invc].get_outvc();
     }
 
+    inline int
+    get_buffer_size(int invc)
+    {
+        return virtualChannels[invc].get_size();
+    }
+
     inline Tick
     get_enqueue_time(int invc)
     {

@@ -59,6 +59,7 @@ class VirtualChannel
     inline int get_outvc()                  { return m_output_vc; }
     void set_outport(int outport)           { m_output_port = outport; };
     inline int get_outport()                  { return m_output_port; }
+    inline int get_size()                   { return inputBuffer.getSize(); }
 
     inline Tick get_enqueue_time()          { return m_enqueue_time; }
     inline void set_enqueue_time(Tick time) { m_enqueue_time = time; }
