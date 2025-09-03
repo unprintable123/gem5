@@ -300,7 +300,7 @@ GarnetSyntheticTraffic::generatePkt()
     else if (traffic == S2_) {
         // Even terminals use X dimension in BC-like way; odd use Y.
         // Other dimensions unchanged (Z unchanged for 3D).
-        bool even = (source % 2 == 0);
+        bool even = ((src_x + src_y) % 2 == 0);
         if (even) {
             dest_x = bc_dim(src_x, Rx); // adversarial along X
             dest_y = src_y;
