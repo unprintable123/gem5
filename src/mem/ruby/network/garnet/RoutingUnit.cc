@@ -446,7 +446,7 @@ int
 RoutingUnit::outportComputeDOR(RouteInfo route, int inport,
                                     PortDirection inport_dirn)
 {
-    const int num_rows = m_router->get_net_ptr()->getNumRows();
+    [[maybe_unused]] const int num_rows = m_router->get_net_ptr()->getNumRows();
     const int num_cols = m_router->get_net_ptr()->getNumCols();
     const int my = m_router->get_id();
     const int my_x = my % num_cols, my_y = my / num_cols;
