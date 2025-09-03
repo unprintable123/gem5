@@ -630,6 +630,7 @@ def plot_results(
     legend_fontsize: float = 10.0,
     legend_ncol: int = 1,
     legend_compact: bool = False,
+    legend_loc: str = "right_outside",
 ):
     """
     Make a single chart with multiple curves; legend sits outside to the right.
@@ -659,7 +660,7 @@ def plot_results(
         and len(any_ok) > 0
     )
 
-    cmap = mpl.colormaps.get("tab20")
+    colors = list(mpl.colormaps.get("tab10").colors)
     markers = ["o", "s", "D", "^", "v", "P", "X", "*", "h", ">", "<"]
     color_idx = 0
     marker_idx = 0
@@ -698,7 +699,7 @@ def plot_results(
 
         ys = [r.stats[y_key] for r in pts]
 
-        color = cmap(color_idx % cmap.N)
+        color = colors[color_idx % len(colors)]
         marker = markers[marker_idx % len(markers)]
         color_idx += 1
         marker_idx += 1
@@ -727,33 +728,47 @@ def plot_results(
     if y_max is not None:
         ax.set_ylim(top=y_max)
 
-    # Legend outside on the right; reserve fixed fraction to keep the main axes area consistent
-    legend_right_frac = max(
-        0.05, min(0.40, legend_right_frac)
-    )  # clamp to reasonable range
-
-    # Compact legend knobs
+    # ---------- Legend placement ----------
+    # Common legend spacing knobs
     handlelength = 1.2 if legend_compact else 1.6
     markerscale = 0.8 if legend_compact else 1.0
     labelspacing = 0.3 if legend_compact else 0.5
     borderpad = 0.3 if legend_compact else 0.5
     columnspacing = 0.6 if legend_compact else 1.0
 
-    ax.legend(
-        loc="center left",
-        bbox_to_anchor=(1 + 0.02 / (1 - legend_right_frac), 0.5),
-        frameon=True,
-        fontsize=legend_fontsize,
-        ncol=max(1, int(legend_ncol)),
-        handlelength=handlelength,
-        markerscale=markerscale,
-        labelspacing=labelspacing,
-        borderpad=borderpad,
-        columnspacing=columnspacing,
-    )
-
-    # Reserve right margin for legend; rect=[left,bottom,right,top]
-    fig.tight_layout(rect=[0.0, 0.0, 1.0 - legend_right_frac, 1.0])
+    if legend_loc == "upper_left":
+        # 放到图内左上角；每个名字独占一行
+        leg = ax.legend(
+            loc="upper left",
+            bbox_to_anchor=(0.02, 0.98),
+            frameon=True,
+            fontsize=legend_fontsize,
+            ncol=1,  # 一列=每行一个
+            handlelength=handlelength,
+            markerscale=markerscale,
+            labelspacing=labelspacing,
+            borderpad=borderpad,
+            columnspacing=columnspacing,
+        )
+        # 图例在图内，不再预留右侧空白
+        fig.tight_layout(rect=[0.0, 0.0, 1.0, 1.0])
+    else:
+        # 维持原先“右侧图外”的布局
+        legend_right_frac = max(0.05, min(0.40, legend_right_frac))
+        leg = ax.legend(
+            loc="center left",
+            bbox_to_anchor=(1 + 0.02 / (1 - legend_right_frac), 0.5),
+            frameon=True,
+            fontsize=legend_fontsize,
+            ncol=max(1, int(legend_ncol)),
+            handlelength=handlelength,
+            markerscale=markerscale,
+            labelspacing=labelspacing,
+            borderpad=borderpad,
+            columnspacing=columnspacing,
+        )
+        # 预留右侧空间给图例
+        fig.tight_layout(rect=[0.0, 0.0, 1.0 - legend_right_frac, 1.0])
 
     # Enforce final size again and save with requested DPI
     fig.set_size_inches(W, H, forward=True)
@@ -994,6 +1009,13 @@ def main():
         action="store_true",
         help="Use tighter paddings/handles for a more compact legend",
     )
+    ap.add_argument(
+        "--legend-loc",
+        type=str,
+        default="right_outside",
+        choices=["right_outside", "upper_left"],
+        help="Legend placement: 'upper_left' puts legend inside axes at top-left; 'right_outside' keeps current outside-right layout",
+    )
 
     args = ap.parse_args()
 
@@ -1070,6 +1092,7 @@ def main():
             legend_fontsize=args.legend_fontsize,
             legend_ncol=args.legend_ncol,
             legend_compact=args.legend_compact,
+            legend_loc=args.legend_loc,
         )
 
 

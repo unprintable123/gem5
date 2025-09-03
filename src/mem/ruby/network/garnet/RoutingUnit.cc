@@ -201,6 +201,8 @@ RoutingUnit::outportCompute(RouteInfo route, int inport,
             outportComputeCustom(route, inport, inport_dirn); break;
         case DIMWAR_: outport =
             outportComputeDimWar(route, inport, inport_dirn); break;
+        case DOR_: outport =
+            outportComputeDOR(route, inport, inport_dirn); break;
         default: outport =
             lookupRoutingTable(route.vnet, route.net_dest); break;
     }
@@ -437,6 +439,63 @@ RoutingUnit::dimwarWeight(int outport_idx, int vnet, int remaining_hops, int rou
     default:
         fatal("DimWar: unknown weight mode %d\n", mode);
     }
+}
+
+
+int
+RoutingUnit::outportComputeDOR(RouteInfo route, int inport,
+                                    PortDirection inport_dirn)
+{
+    const int num_rows = m_router->get_net_ptr()->getNumRows();
+    const int num_cols = m_router->get_net_ptr()->getNumCols();
+    const int my = m_router->get_id();
+    const int my_x = my % num_cols, my_y = my / num_cols;
+    const int dst = route.dest_router;
+    const int dst_x = dst % num_cols, dst_y = dst / num_cols;
+
+    // If we are at the destination router, use the routing table
+    if (dst == my)
+    {
+        return lookupRoutingTable(route.vnet, route.net_dest);
+    }
+
+    // Determine the dimension we are going to route in this hop
+    bool x_unaligned = (dst_x != my_x);
+    bool y_unaligned = (dst_y != my_y);
+    int dim = x_unaligned ? 0 : (y_unaligned ? 1 : -1);
+    assert(dim != -1);
+
+    for (const auto &[dirn, idx] : m_outports_dirn2idx)
+    {
+        const std::string &s = dirn;
+        if (s.rfind("out_r", 0) != 0)
+            continue;
+        int neigh = std::stoi(s.substr(5));
+        int nx = neigh % num_cols, ny = neigh / num_cols;
+
+        // Check if this output port is in the right dimension
+        if (dim == 0)
+        {
+            if (ny != my_y)
+                continue;
+        }
+        else
+        { // dim == 1
+            if (nx != my_x)
+                continue;
+        }
+
+        // Check if this is a minimal route
+        bool is_minimal = (dim == 0) ? (nx == dst_x) : (ny == dst_y);
+
+        if (is_minimal)
+        {
+            // minimal route
+            return idx;
+        }
+    }
+    fatal("DOR: no candidates found");
+    return -1;
 }
 
 } // namespace garnet
