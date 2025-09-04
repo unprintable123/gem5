@@ -16,7 +16,7 @@ base_args = {
     "enable-switch-collision-avoidance": True,
     "vcs-per-vnet": 16,
     "inj-vnet": 0,
-    "synthetic": "uniform_random",
+    "synthetic": "bit_complement",
     "sim-cycles": 20000,
 }
 
@@ -34,7 +34,7 @@ def build_cmd(outdir, **args) -> str:
 
 def run_sim(injectionrate, override_args):
     args = {**base_args, **override_args}
-    outdir = f"logs/report/{args['synthetic']}_vc{args['vcs-per-vnet']}/inj_{injectionrate:.3f}"
+    outdir = f"logs/report/{args['synthetic']}_vc{args['vcs-per-vnet']}_algo{args['routing-algorithm']}/inj_{injectionrate:.3f}"
     os.makedirs(outdir, exist_ok=True)
     cmd = build_cmd(outdir, **args, injectionrate=injectionrate)
     with open(os.path.join(outdir, "cmd.txt"), "w") as f:
@@ -83,7 +83,16 @@ injection_rates = [0.05 * i for i in range(1, 20)]
 plt.figure(figsize=(10, 6))
 for synthetic, results in exps.items():
     latencies = [result["average_packet_latency"] for result in results]
-    plt.plot(injection_rates, latencies, marker="o", label=synthetic)
+    draw_length = len(latencies)
+    if max(latencies) > 800:
+        draw_length = next(i for i, v in enumerate(latencies) if v > 800) + 1
+    print(synthetic, draw_length)
+    plt.plot(
+        injection_rates[:draw_length],
+        latencies[:draw_length],
+        marker="o",
+        label=synthetic,
+    )
 
 plt.xlabel("Injection Rate")
 plt.ylabel("Average Packet Latency")

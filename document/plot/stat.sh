@@ -9,4 +9,5 @@ grep "average_packet_network_latency" $src_log | sed 's/system.ruby.network.aver
 grep "average_packet_latency" $src_log | sed 's/system.ruby.network.average_packet_latency\s*/average_packet_latency = /' >> ${logging_target}
 grep "average_hops" $src_log | sed 's/system.ruby.network.average_hops\s*/average_hops = /' >> ${logging_target}
 grep "reception_rate" $src_log | sed 's/system.ruby.network.reception_rate\s*/reception_rate = /' >> ${logging_target}
+grep -E "system.ruby.network.link_utilization\S*out_r" $src_log | sed 's/system.ruby.network.link_utilization\(\S*\)\s*/link_utilization\1 = /' >> ${logging_target}
 cat ${logging_target}
