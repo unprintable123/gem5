@@ -141,7 +141,7 @@ parser.add_argument(
 parser.add_argument(
     "--dimwar-weight",
     default="hop_x_cong",
-    choices=["hop", "cong", "hop_x_cong", "linear", "credits", "hybrid"],
+    choices=["hop", "cong", "hop_x_cong", "hop_x_credit", "credit", "hybrid"],
 )
 parser.add_argument("--dimwar-alpha", type=float, default=1.0)
 parser.add_argument("--dimwar-beta", type=float, default=1.0)

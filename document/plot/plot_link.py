@@ -186,5 +186,5 @@ def plot_hyperx_traffic_load(log_file):
 
 
 plot_hyperx_traffic_load(
-    "/root/gem5/logs/report/bit_complement_vc16_algo3/inj_0.800/network_stats.txt"
+    "/root/gem5/logs/report/urby_vc16_algo4/inj_0.800/network_stats.txt"
 )

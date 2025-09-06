@@ -34,7 +34,7 @@ def build_cmd(outdir, **args) -> str:
 
 def run_sim(injectionrate, override_args):
     args = {**base_args, **override_args}
-    outdir = f"logs/report/{args['synthetic']}_vc{args['vcs-per-vnet']}_algo{args['routing-algorithm']}/inj_{injectionrate:.3f}"
+    outdir = f"logs/report/size{args['mesh-rows']}_{args['synthetic']}_vc{args['vcs-per-vnet']}_algo{args['routing-algorithm']}/inj_{injectionrate:.3f}"
     os.makedirs(outdir, exist_ok=True)
     cmd = build_cmd(outdir, **args, injectionrate=injectionrate)
     with open(os.path.join(outdir, "cmd.txt"), "w") as f:
@@ -65,7 +65,7 @@ def run_exp(override_args):
     def run_once(injectionrate):
         return run_sim(injectionrate, override_args)
 
-    with ThreadPoolExecutor(max_workers=8) as executor:
+    with ThreadPoolExecutor(max_workers=10) as executor:
         injection_rates = [0.05 * i for i in range(1, 20)]
         results = list(executor.map(run_once, injection_rates))
     print(f"Finished {override_args}")
@@ -74,23 +74,24 @@ def run_exp(override_args):
 
 exps = {
     "DOR": run_exp({"routing-algorithm": 4}),
-    "DimWar": run_exp({"routing-algorithm": 3}),
+    "DimWAR": run_exp({"routing-algorithm": 3}),
 }
 
 # Extract injection rates and latencies for plotting
 injection_rates = [0.05 * i for i in range(1, 20)]
+markers = ["o", "s", "D", "^", "v", "P", "X", "*", "h", ">", "<"]
 
 plt.figure(figsize=(10, 6))
-for synthetic, results in exps.items():
+for i, (synthetic, results) in enumerate(exps.items()):
     latencies = [result["average_packet_latency"] for result in results]
     draw_length = len(latencies)
-    if max(latencies) > 800:
-        draw_length = next(i for i, v in enumerate(latencies) if v > 800) + 1
+    if max(latencies) > 100:
+        draw_length = next(i for i, v in enumerate(latencies) if v > 100) + 1
     print(synthetic, draw_length)
     plt.plot(
         injection_rates[:draw_length],
         latencies[:draw_length],
-        marker="o",
+        marker=markers[i],
         label=synthetic,
     )
 
@@ -101,3 +102,23 @@ plt.title("Average Packet Latency vs Injection Rate")
 plt.legend()
 plt.grid(True)
 plt.savefig("document/plot/average_packet_latency_traffic.png")
+
+plt.figure(figsize=(10, 6))
+for i, (synthetic, results) in enumerate(exps.items()):
+    avg_hops = [
+        result["average_hops"] if "average_hops" in result else 1.875
+        for result in results
+    ]
+    plt.plot(
+        injection_rates[: len(avg_hops)],
+        avg_hops,
+        marker=markers[i],
+        label=synthetic,
+    )
+
+plt.xlabel("Injection Rate")
+plt.ylabel("Average Hops")
+plt.title("Average Hops of DOR and DimWAR")
+plt.legend()
+plt.grid(True)
+plt.savefig("document/plot/average_hops_traffic.png")
