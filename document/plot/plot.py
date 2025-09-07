@@ -85,7 +85,9 @@ def run_exp(override_args):
     return results
 
 
-exps = {f"VC{vc}": run_exp({"vcs-per-vnet": vc}) for vc in [1, 2, 4, 8, 16]}
+exps = {
+    f"LW{lw}": run_exp({"link-width-bits": lw}) for lw in [32, 64, 128, 256]
+}
 
 # Extract injection rates and latencies for plotting
 injection_rates = [0.02 * i for i in range(1, 45)]
@@ -100,9 +102,9 @@ for i, (synthetic, results) in enumerate(exps.items()):
 
 plt.xlabel("Reception Rate")
 plt.ylabel("Average Packet Latency")
-plt.ylim(12, 400)
+plt.ylim(12, 200)
 # plt.yscale('log')
-plt.title("Latency-Throughput Curve for Different Traffic Patterns")
+# plt.title("Latency-Throughput Curve")
 plt.legend()
 plt.grid(True)
 plt.savefig("document/plot/average_packet_latency_traffic.png")
