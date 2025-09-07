@@ -597,7 +597,13 @@ GarnetNetwork::collateStats()
         m_routers[i]->collateStats();
     }
 
-    m_total_cycles = curCycle();
+    Tick ruby_clock = clockPeriod();
+
+    SimObject *clk_domain_obj = SimObject::find("system.clk_domain");
+    ClockDomain *sys_clk_domain = dynamic_cast<ClockDomain *>(clk_domain_obj);
+    Tick sys_clock = sys_clk_domain->clockPeriod();
+
+    m_total_cycles = time_delta * (double)ruby_clock / (double)sys_clock;
 }
 
 void
