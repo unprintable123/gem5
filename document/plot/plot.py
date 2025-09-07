@@ -51,7 +51,7 @@ def run_once(cmd, outdir):
     )
 
 
-def run_sim(injectionrate, **override_args):
+def run_sim(injectionrate, override_args):
     args = {**base_args, **override_args}
     appendix = ""
     if "router-latency" in args:
@@ -74,9 +74,9 @@ def run_sim(injectionrate, **override_args):
     return results
 
 
-def run_exp(**override_args):
+def run_exp(override_args):
     def run_once(injectionrate):
-        return run_sim(injectionrate, **override_args)
+        return run_sim(injectionrate, override_args)
 
     with ThreadPoolExecutor(max_workers=12) as executor:
         injection_rates = [0.02 * i for i in range(1, 45)]
@@ -85,10 +85,7 @@ def run_exp(**override_args):
     return results
 
 
-exps = {
-    s: run_exp(synthetic=s)
-    for s in ["uniform_random", "shuffle", "transpose", "tornado", "neighbor"]
-}
+exps = {f"VC{vc}": run_exp({"vcs-per-vnet": vc}) for vc in [1, 2, 4, 8, 16]}
 
 # Extract injection rates and latencies for plotting
 injection_rates = [0.02 * i for i in range(1, 45)]
@@ -103,7 +100,7 @@ for i, (synthetic, results) in enumerate(exps.items()):
 
 plt.xlabel("Reception Rate")
 plt.ylabel("Average Packet Latency")
-plt.ylim(7.5, 25)
+plt.ylim(12, 400)
 # plt.yscale('log')
 plt.title("Latency-Throughput Curve for Different Traffic Patterns")
 plt.legend()
