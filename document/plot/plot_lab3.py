@@ -14,14 +14,19 @@ base_args = {
     "inj-vnet": 0,
     "synthetic": "uniform_random",
     "sim-cycles": 10000,
-    "vcs-per-vnet": 4,
+    # "wormhole": True,
+    "vcs-per-vnet": 16,
 }
 
 
 def build_cmd(outdir, **args) -> str:
     cmd = f"./build/NULL/gem5.opt --outdir={outdir} configs/example/garnet_synth_traffic.py"
     for k, v in args.items():
-        cmd += f" --{k}={v}"
+        if isinstance(v, bool):
+            if v:
+                cmd += f" --{k}"
+        else:
+            cmd += f" --{k}={v}"
     return cmd
 
 
@@ -57,6 +62,8 @@ def run_sim(injectionrate, override_args):
         appendix += f"_rl{args['router-latency']}"
     if "link-width-bits" in args:
         appendix += f"_lw{args['link-width-bits']}"
+    if "wormhole" in args and args["wormhole"]:
+        appendix += "_wh"
     outdir = f"logs/lab3/{args['topology']}/{args['synthetic']}_vc{args['vcs-per-vnet']}{appendix}/inj_{injectionrate:.3f}"
     os.makedirs(outdir, exist_ok=True)
     cmd = build_cmd(outdir, **args, injectionrate=injectionrate)
@@ -98,13 +105,13 @@ for i, (synthetic, results) in enumerate(exps.items()):
     receptions = [result["reception_rate"] for result in results]
     latencies = [result["average_packet_latency"] for result in results]
     avg_hops = [result["average_hops"] for result in results]
-    plt.plot(injection_rates, avg_hops, marker=markers[i], label=synthetic)
+    plt.plot(injection_rates, receptions, marker=markers[i], label=synthetic)
 
 plt.xlabel("Injection Rate")
-plt.ylabel("Average Hops")
-# plt.ylim(0, 40)
+plt.ylabel("Reception Rate")
+# plt.ylim(0, 100)
 # plt.yscale('log')
 # plt.title("Latency-Throughput Curve")
 plt.legend()
 plt.grid(True)
-plt.savefig("document/plot/ring_injection_hops.png")
+plt.savefig("document/plot/ring_vc16_injection_reception.png")
